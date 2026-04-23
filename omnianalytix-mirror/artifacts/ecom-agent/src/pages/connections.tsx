@@ -15,6 +15,7 @@ import { useWorkspace } from "@/contexts/workspace-context";
 import { authFetch } from "@/lib/auth-fetch";
 import { formatUsdInDisplay } from "@/lib/fx-format";
 import { CredentialRequestModal } from "@/components/enterprise/credential-request-modal";
+import { CredentialHelp, getHelpRecipe } from "@/components/connections/credential-help";
 import { CrmPipelineMappingModal } from "@/components/connections/crm-pipeline-modal";
 import { LookerEmbedCard } from "@/components/connections/looker-embed-card";
 import { DbConnectModal } from "@/components/connections/db-connect-modal";
@@ -46,6 +47,33 @@ function isSectionVisible(section: string, goal: WorkspaceGoal): boolean {
   const allowed = SECTION_VISIBILITY[section];
   return allowed ? allowed.includes(goal) : true;
 }
+
+// Minimum-viable connection set per goal. Each "slot" is satisfied when
+// any of the listed platforms reports a healthy/active connection. Used
+// to drive the top-of-page progress strip and the "next missing card"
+// scroll target for new users.
+type ConnectionSlot = {
+  id: string;
+  label: string;
+  /** Platforms that satisfy this slot (any-of). */
+  anyOf: string[];
+  /** data-focus-platform value to scroll to when this slot is missing. */
+  focus: string;
+};
+const MIN_VIABLE_SET: Record<WorkspaceGoal, ConnectionSlot[]> = {
+  ecom: [
+    { id: "store", label: "store",        anyOf: ["shopify", "woocommerce"],          focus: "shopify" },
+    { id: "ads",   label: "ad platform",  anyOf: ["google_ads", "meta", "bing_ads"],  focus: "google_workspace" },
+  ],
+  leadgen: [
+    { id: "ads",   label: "ad platform",  anyOf: ["google_ads", "meta", "bing_ads"],         focus: "google_workspace" },
+    { id: "crm",   label: "CRM",          anyOf: ["hubspot", "salesforce", "zoho"],          focus: "crm" },
+  ],
+  hybrid: [
+    { id: "store", label: "store",        anyOf: ["shopify", "woocommerce"],          focus: "shopify" },
+    { id: "ads",   label: "ad platform",  anyOf: ["google_ads", "meta", "bing_ads"],  focus: "google_workspace" },
+  ],
+};
 
 interface EtlStatus {
   etlStatus: "idle" | "running" | "complete" | "error";
@@ -264,11 +292,13 @@ function HealthBadge({ connected, updatedAt }: { connected: boolean; updatedAt?:
   const lastSynced = timeAgo(updatedAt);
 
   if (!connected) {
+    // Pre-connection state — neutral, not failure. Truly broken connections
+    // (token expired, etc.) surface separately via TokenExpiredState above
+    // the integration grid, so red styling here is misleading for new users.
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase"
-        style={{ background: "var(--color-status-critical-bg)", color: "var(--color-status-critical-fg)", borderColor: "var(--color-status-critical-border)" }}>
-        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--color-status-critical-dot)" }} />
-        Disconnected
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase bg-surface text-on-surface-variant border-outline-variant/30">
+        <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-on-surface-variant/40" />
+        Not connected yet
       </span>
     );
   }
@@ -357,6 +387,13 @@ function WooCommerceModal({
             </div>
           </div>
         </DialogHeader>
+
+        <CredentialHelp
+          platformLabel="WooCommerce"
+          steps={getHelpRecipe("woocommerce")?.steps ?? []}
+          docsUrl={getHelpRecipe("woocommerce")?.docsUrl}
+          className="mb-1"
+        />
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -494,7 +531,21 @@ function ApiKeyModal({
           </button>
         </div>
 
-        <p className="text-xs text-on-surface-variant mb-5">Your credentials are encrypted before storage. OmniAnalytix uses read-only access scopes.</p>
+        <p className="text-xs text-on-surface-variant mb-3">Your credentials are encrypted before storage. OmniAnalytix uses read-only access scopes.</p>
+
+        {(() => {
+          const recipe = getHelpRecipe(config.platform);
+          if (!recipe) return null;
+          return (
+            <div className="mb-4">
+              <CredentialHelp
+                platformLabel={config.title}
+                steps={recipe.steps}
+                docsUrl={recipe.docsUrl}
+              />
+            </div>
+          );
+        })()}
 
         <div className="space-y-4 mb-6">
           {config.fields.map((field) => (
@@ -597,6 +648,7 @@ export default function Connections() {
   const [byodbCredentials, setByodbCredentials] = useState<Array<{ id: number; dbType: string; label: string; host: string; status: string; databaseName: string; createdAt: string }>>([]);
 
   const [isForceSyncing, setIsForceSyncing] = useState(false);
+  const [showAllSections, setShowAllSections] = useState(false);
 
   const [domainUrl, setDomainUrl] = useState(activeWorkspace?.websiteUrl ?? "");
   const [domainSaving, setDomainSaving] = useState(false);
@@ -680,7 +732,10 @@ export default function Connections() {
       const shop = params.get("shop") ?? "your Shopify store";
       setShopName(shop);
       setShopifyJustConnected(true);
-      toast({ title: "Shopify Connected", description: `Successfully authorised ${shop} via OAuth.` });
+      toast({
+        title: "Shopify connected",
+        description: `Pulling 90 days of orders from ${shop} — your dashboard will be live in ~5 minutes.`,
+      });
       queryClient.invalidateQueries({ queryKey: getListConnectionsQueryKey() });
       setLocation("/connections", { replace: true });
       void pollEtlStatus();
@@ -707,28 +762,40 @@ export default function Connections() {
     }
 
     if (params.get("bing_ads") === "connected") {
-      toast({ title: "Bing Ads Connected", description: "Microsoft Advertising linked via OAuth." });
+      toast({
+        title: "Bing Ads connected",
+        description: "Pulling the last 30 days of campaigns — first metrics will appear within ~3 minutes.",
+      });
       queryClient.invalidateQueries({ queryKey: getListConnectionsQueryKey() });
       setLocation("/connections", { replace: true });
       return;
     }
 
     if (params.get("zoho") === "connected") {
-      toast({ title: "Zoho CRM Connected", description: "Zoho CRM linked via OAuth." });
+      toast({
+        title: "Zoho CRM connected",
+        description: "Pulling contacts, deals and pipelines — your CRM dashboards will populate in ~3 minutes.",
+      });
       queryClient.invalidateQueries({ queryKey: getListConnectionsQueryKey() });
       setLocation("/connections", { replace: true });
       return;
     }
 
     if (params.get("salesforce") === "connected") {
-      toast({ title: "Salesforce Connected", description: "Salesforce CRM linked via OAuth." });
+      toast({
+        title: "Salesforce connected",
+        description: "Pulling accounts, opportunities and pipelines — your CRM dashboards will populate in ~3 minutes.",
+      });
       queryClient.invalidateQueries({ queryKey: getListConnectionsQueryKey() });
       setLocation("/connections", { replace: true });
       return;
     }
 
     if (params.get("hubspot") === "connected") {
-      toast({ title: "HubSpot Connected", description: "HubSpot CRM linked via OAuth." });
+      toast({
+        title: "HubSpot connected",
+        description: "Pulling contacts, deals and pipelines — your CRM dashboards will populate in ~3 minutes.",
+      });
       queryClient.invalidateQueries({ queryKey: getListConnectionsQueryKey() });
       setLocation("/connections", { replace: true });
       return;
@@ -1024,6 +1091,39 @@ export default function Connections() {
     return services.filter((s) => s.goals.includes(goal));
   }, [goal, gCalConnected, gDriveConnected, gDocsConnected]);
 
+  // Drive the top-of-page progress strip from the goal's minimum-viable set.
+  const connectionProgress = useMemo(() => {
+    const slots = MIN_VIABLE_SET[goal] ?? MIN_VIABLE_SET.ecom;
+    const isPlatformActive = (p: string): boolean => {
+      switch (p) {
+        case "shopify":      return !!isShopifyConnected;
+        case "woocommerce":  return isWooConnected;
+        case "google_ads":   return isGoogleConnected;
+        case "meta":         return isMetaConnected;
+        case "bing_ads":     return bingConnected;
+        case "hubspot":      return hubspotConnected;
+        case "salesforce":   return salesforceConnected;
+        case "zoho":         return zohoConnected;
+        default:             return false;
+      }
+    };
+    const enriched = slots.map((s) => ({ ...s, satisfied: s.anyOf.some(isPlatformActive) }));
+    const done = enriched.filter((s) => s.satisfied).length;
+    const total = enriched.length;
+    const nextMissing = enriched.find((s) => !s.satisfied) ?? null;
+    return { slots: enriched, done, total, nextMissing, complete: done >= total };
+  }, [goal, isShopifyConnected, isWooConnected, isGoogleConnected, isMetaConnected, bingConnected, hubspotConnected, salesforceConnected, zohoConnected]);
+
+  const handleScrollToNextMissing = () => {
+    if (!connectionProgress.nextMissing) return;
+    const target = connectionProgress.nextMissing.focus;
+    const el = document.querySelector<HTMLElement>(`[data-focus-platform="${target}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.setAttribute("data-focused", "true");
+    window.setTimeout(() => el.removeAttribute("data-focused"), 3500);
+  };
+
   const AUTH_STALE_CODES = ["invalid_grant", "unauthorized_client"];
   const workspaceNeedsReconnect = (["google_calendar", "google_drive", "google_docs"] as const)
     .some((p) => {
@@ -1107,6 +1207,75 @@ export default function Connections() {
           </div>
         </section>
 
+        {/* ── Goal-driven connection progress strip ─────────────────────── */}
+        <section
+          data-testid="connection-progress-strip"
+          aria-label="Connection progress"
+          className={cn(
+            "mb-6 rounded-2xl border p-4 sm:p-5 transition-colors",
+            connectionProgress.complete
+              ? "bg-emerald-50 border-emerald-200"
+              : "bg-blue-50 border-blue-200/70",
+          )}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+              connectionProgress.complete ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700",
+            )}>
+              <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+                {connectionProgress.complete ? "check_circle" : "rocket_launch"}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-on-surface leading-snug">
+                {connectionProgress.complete
+                  ? "You're set — your dashboard is unlocked."
+                  : `Connect ${connectionProgress.slots.map((s) => `1 ${s.label}`).join(" + ")} to unlock your dashboard`}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-white/70 border border-outline-variant/15 overflow-hidden">
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-500", connectionProgress.complete ? "bg-emerald-500" : "bg-blue-500")}
+                    style={{ width: `${(connectionProgress.done / Math.max(1, connectionProgress.total)) * 100}%` }}
+                  />
+                </div>
+                <span className="text-[11px] font-bold text-on-surface-variant whitespace-nowrap" data-testid="connection-progress-count">
+                  {connectionProgress.done} of {connectionProgress.total} connected
+                </span>
+              </div>
+            </div>
+            {!connectionProgress.complete && connectionProgress.nextMissing && (
+              <button
+                type="button"
+                onClick={handleScrollToNextMissing}
+                data-testid="connection-progress-next"
+                className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[#2563EB] hover:bg-[#1d4ed8] text-white text-xs font-bold transition-all active:scale-95 self-start sm:self-auto"
+              >
+                Connect {connectionProgress.nextMissing.label}
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_downward</span>
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* Goal filter / show-all toggle */}
+        <div className="mb-4 flex items-center justify-between gap-2 text-xs">
+          <p className="text-on-surface-variant">
+            {showAllSections
+              ? "Showing every integration we support."
+              : `Showing the ${GOAL_LABELS[goal].toLowerCase()} integrations recommended for your workspace.`}
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAllSections((v) => !v)}
+            data-testid="show-all-integrations-toggle"
+            className="font-semibold text-primary-container hover:underline whitespace-nowrap"
+          >
+            {showAllSections ? "Show recommended only" : "Show all integrations"}
+          </button>
+        </div>
+
         {shopifyJustConnected && (
           <EtlSyncBanner shopName={shopName} etl={etlStatus} onDismiss={() => setShopifyJustConnected(false)} onGoHome={handleGoHome} />
         )}
@@ -1184,7 +1353,7 @@ export default function Connections() {
               )}
             </section>
 
-            {isSectionVisible("google_workspace", goal) && (
+            {(showAllSections || isSectionVisible("google_workspace", goal)) && (
               <section data-focus-platform="google_workspace" className="bg-white border ghost-border rounded-2xl p-6 shadow-sm md:col-span-2 data-[focused=true]:ring-4 data-[focused=true]:ring-[#2563EB]/40 data-[focused=true]:ring-offset-2 transition-all">
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-3">
@@ -1354,7 +1523,7 @@ export default function Connections() {
               </section>
             )}
 
-            {isSectionVisible("meta_ads", goal) && (
+            {(showAllSections || isSectionVisible("meta_ads", goal)) && (
               <section data-focus-platform="meta_ads" className="bg-white border ghost-border rounded-2xl p-6 shadow-sm data-[focused=true]:ring-4 data-[focused=true]:ring-[#2563EB]/40 data-[focused=true]:ring-offset-2 transition-all">
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-3">
@@ -1382,7 +1551,7 @@ export default function Connections() {
               </section>
             )}
 
-            {isSectionVisible("bing_ads", goal) && (
+            {(showAllSections || isSectionVisible("bing_ads", goal)) && (
               <section className={cn(
                 "bg-white border ghost-border rounded-2xl p-6 shadow-sm",
                 bingConnected && "border-l-4 border-l-teal-500",
@@ -1439,7 +1608,7 @@ export default function Connections() {
               </section>
             )}
 
-            {isSectionVisible("ad_channels", goal) && (
+            {(showAllSections || isSectionVisible("ad_channels", goal)) && (
               <section className="bg-white border ghost-border rounded-2xl p-6 shadow-sm md:col-span-2">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="w-10 h-10 rounded-2xl bg-[#010101]/5 border border-[#010101]/10 flex items-center justify-center">
@@ -1537,7 +1706,7 @@ export default function Connections() {
               </section>
             )}
 
-            {isSectionVisible("shopify", goal) && (
+            {(showAllSections || isSectionVisible("shopify", goal)) && (
               <section
                 data-focus-platform="shopify"
                 className={cn(
@@ -1601,7 +1770,7 @@ export default function Connections() {
               </section>
             )}
 
-            {isSectionVisible("woocommerce", goal) && (
+            {(showAllSections || isSectionVisible("woocommerce", goal)) && (
               <section className="bg-white border ghost-border rounded-2xl p-6 shadow-sm">
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-3">
@@ -1635,7 +1804,7 @@ export default function Connections() {
               </section>
             )}
 
-            {isSectionVisible("crm", goal) && (
+            {(showAllSections || isSectionVisible("crm", goal)) && (
               <div className="md:col-span-2 flex flex-col gap-4">
                 <section className="bg-white border ghost-border rounded-2xl p-6 shadow-sm">
                   <div className="flex items-center gap-3 mb-4">
@@ -1843,7 +2012,7 @@ export default function Connections() {
               </div>
             )}
 
-            {isSectionVisible("ops_finance", goal) && (
+            {(showAllSections || isSectionVisible("ops_finance", goal)) && (
               <section className="bg-white border ghost-border rounded-2xl p-6 shadow-sm md:col-span-2">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="w-10 h-10 rounded-2xl bg-[#4A154B]/5 border border-[#4A154B]/10 flex items-center justify-center">

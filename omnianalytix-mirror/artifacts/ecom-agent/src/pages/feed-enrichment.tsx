@@ -504,6 +504,17 @@ export default function FeedEnrichmentPage() {
   // failing row without forcing applyBulk to depend on fixesData.
   const fixesDataRef = useRef<QualityFixesResponse | null>(null);
   useEffect(() => { fixesDataRef.current = fixesData; }, [fixesData]);
+  // Guard against stale Quality-Fixes responses overwriting fresher ones.
+  // `loadFixes` is invoked from many concurrent paths (rescan, retry, page
+  // change, filter change); without cancellation an older request that lands
+  // after a newer one would flicker the panel back to outdated rows/counts.
+  const loadFixesReqIdRef = useRef(0);
+  const loadFixesAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => {
+    // Abort any in-flight Quality-Fixes request when the page unmounts so
+    // its setState calls don't fire on an unmounted component.
+    loadFixesAbortRef.current?.abort();
+  }, []);
   const [fixesError, setFixesError] = useState<string | null>(null);
   const [selectedOffers, setSelectedOffers] = useState<Set<string>>(new Set());
   const [fixesFilter, setFixesFilter] = useState<FixesFilter>("with-fixes");
@@ -815,6 +826,14 @@ export default function FeedEnrichmentPage() {
 
   // ── Quality Fixes handlers ───────────────────────────────────────────────
   const loadFixes = useCallback(async () => {
+    // Cancel any in-flight request and bump the request id so a slower
+    // older response that still resolves won't overwrite fresher state.
+    loadFixesAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadFixesAbortRef.current = controller;
+    const reqId = ++loadFixesReqIdRef.current;
+    const isStale = () => reqId !== loadFixesReqIdRef.current;
+
     setFixesLoading(true);
     setFixesError(null);
     try {
@@ -825,8 +844,12 @@ export default function FeedEnrichmentPage() {
         sort:   fixesSort,
       });
       if (fixesStaleOnly) params.set("stale", "true");
-      const res  = await authFetch(`${API_BASE}api/feed-enrichment/quality-fixes?${params.toString()}`);
+      const res  = await authFetch(
+        `${API_BASE}api/feed-enrichment/quality-fixes?${params.toString()}`,
+        { signal: controller.signal },
+      );
       const data = await res.json() as QualityFixesResponse;
+      if (isStale()) return;
       if (!res.ok) {
         setFixesError(data.error ?? "Failed to load suggested fixes.");
         setFixesData(null);
@@ -839,10 +862,15 @@ export default function FeedEnrichmentPage() {
         }
         setSelectedOffers(next);
       }
-    } catch {
+    } catch (err) {
+      if ((err as { name?: string })?.name === "AbortError") return;
+      if (isStale()) return;
       setFixesError("Network error while loading suggested fixes.");
     } finally {
-      setFixesLoading(false);
+      // Only the latest request should toggle the loading flag off — an
+      // aborted older request finishing first would otherwise hide the
+      // spinner while the newer fetch is still in flight.
+      if (!isStale()) setFixesLoading(false);
     }
   }, [fixesPage, fixesFilter, fixesStaleOnly, fixesSort]);
 

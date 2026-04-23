@@ -197,13 +197,13 @@ export default function ActivityLogPage() {
         )}
 
         {/* ── List ───────────────────────────────────────────────────────── */}
-        {error && (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] text-rose-700 mb-4">
-            {error}
-          </div>
-        )}
-
-        {loading ? (
+        {entriesQuery.isError ? (
+          <QueryErrorState
+            title="Couldn't load activity log"
+            error={entriesQuery.error}
+            onRetry={() => entriesQuery.refetch()}
+          />
+        ) : loading ? (
           <ul className="space-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
               <li key={i} className="h-20 rounded-xl bg-slate-100 animate-pulse" />

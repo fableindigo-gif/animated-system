@@ -7,6 +7,7 @@ import { WorkspaceProvisionWizard } from "@/components/enterprise/workspace-prov
 import { WorkspaceContextMenu } from "@/components/enterprise/workspace-context-menu";
 import { authFetch } from "@/lib/auth-fetch";
 import { queryKeys } from "@/lib/query-keys";
+import { QueryErrorState } from "@/components/query-error-state";
 import { Building2, ChevronDown, ChevronRight as ChevronRightIcon } from "lucide-react";
 import HandoffRegistry from "@/components/agency/HandoffRegistry";
 
@@ -184,6 +185,15 @@ export default function AgencyCommandCenter() {
             </button>
           </div>
         </section>
+
+        {orgsQuery.isError && (
+          <QueryErrorState
+            title="Couldn't load client organizations"
+            error={orgsQuery.error}
+            onRetry={() => orgsQuery.refetch()}
+            compact
+          />
+        )}
 
         <HandoffRegistry />
 

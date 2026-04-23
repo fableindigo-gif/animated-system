@@ -11,6 +11,7 @@ import { useWorkspace } from "@/contexts/workspace-context";
 import { useToast } from "@/hooks/use-toast";
 import { authFetch } from "@/lib/auth-fetch";
 import { queryKeys } from "@/lib/query-keys";
+import { QueryErrorState } from "@/components/query-error-state";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/contexts/currency-context";
 import { useFx } from "@/contexts/fx-context";
@@ -526,6 +527,17 @@ function EconomicsTab() {
         title="Economics"
         description="Per-tenant defaults for True Profit, POAS, and the campaign Health badge. Leave blank to use the platform defaults (35% COGS, 4× target ROAS)."
       />
+
+      {economicsQuery.isError && (
+        <div className="px-4 pt-2">
+          <QueryErrorState
+            title="Couldn't load economics settings"
+            error={economicsQuery.error}
+            onRetry={() => economicsQuery.refetch()}
+            compact
+          />
+        </div>
+      )}
 
       <SettingRow
         label="Default COGS %"

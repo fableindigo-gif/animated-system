@@ -2,6 +2,7 @@ import { Router } from "express";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db, accessRequests, workspaces } from "@workspace/db";
 import { getOrgId, requireRole } from "../../middleware/rbac";
+import { notifyAdminsOfAccessRequest } from "../../lib/notify-admins";
 
 const router = Router();
 
@@ -69,6 +70,21 @@ router.post("/", async (req, res) => {
         status: "pending",
       })
       .returning();
+
+    // Best-effort admin notification — the in-app inbox is the primary
+    // delivery surface; this is the email-equivalent fan-out. We don't
+    // await success because a failed notification must never block the
+    // request from being recorded.
+    void notifyAdminsOfAccessRequest({
+      organizationId: orgId,
+      requesterName: created.requesterName,
+      requesterEmail: created.requesterEmail,
+      requesterRole: created.requesterRole,
+      actionLabel: created.actionLabel,
+      actionContext: created.actionContext,
+      reason: created.reason,
+      log: req.log,
+    });
 
     res.status(201).json(created);
   } catch (err) {

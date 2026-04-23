@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useListGeminiConversations,
   useCreateGeminiConversation,
@@ -333,6 +333,25 @@ export default function Home() {
 
   // ─── Approval Handlers ──────────────────────────────────────────────────────
 
+  // Cached lookup of the first active admin so the RBAC toast can address
+  // them by name ("Request access from Sarah") instead of generic copy.
+  // Failures degrade silently to "Request access" — non-blocking.
+  const { data: adminContact } = useQuery<{ name: string } | null>({
+    queryKey: ["org-first-admin"],
+    queryFn: async () => {
+      try {
+        const res = await authFetch(`${API_BASE}api/team`);
+        if (!res.ok) return null;
+        const members = await res.json() as Array<{ name?: string; role?: string; isActive?: boolean }>;
+        const admin = members.find((m) => m.role === "admin" && m.isActive !== false && (m.name?.trim()?.length ?? 0) > 0);
+        return admin?.name ? { name: admin.name } : null;
+      } catch { return null; }
+    },
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const adminName = adminContact?.name ?? null;
+
   // Fire-and-forget access request: sends an in-app request to workspace
   // admins describing the action the current user was blocked on. Admins
   // grant or dismiss it from settings → Access requests. We always show a
@@ -401,10 +420,10 @@ export default function Home() {
           const actionLabel = card?.toolDisplayName ?? "this action";
           toast({
             title: "Permission needed",
-            description: body.message || `You don't have permission to approve ${actionLabel}. Send a one-click request to your workspace admin.`,
+            description: body.message || `You don't have permission to approve ${actionLabel}. Send a one-click request to your workspace admin${adminName ? ` (${adminName})` : ""}.`,
             variant: "destructive",
             action: {
-              label: "Request access",
+              label: adminName ? `Request access from ${adminName}` : "Request access",
               onClick: () => { void requestAccess(actionLabel, card?.toolName ?? null); },
             },
           });

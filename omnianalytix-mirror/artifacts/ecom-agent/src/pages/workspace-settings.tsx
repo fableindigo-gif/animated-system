@@ -1195,38 +1195,38 @@ function UsageSparkline({ rows, cap }: { rows: DailyUsageRow[]; cap: number }) {
 
 function AiQuotaTab() {
   const { toast } = useToast();
-
-  const [usageData,    setUsageData]    = useState<AiUsagePayload | null>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [loadErr,      setLoadErr]      = useState(false);
+  const queryClient = useQueryClient();
 
   const [lookbackInput, setLookbackInput] = useState("");
   const [rowCapInput,   setRowCapInput]   = useState("");
   const [saving,        setSaving]        = useState(false);
 
+  // AI Quota loads usage + guardrails together via react-query so the tab
+  // gets cancellation, cache de-dup, and a real retry path on failure.
+  const aiQuotaQuery = useQuery({
+    queryKey: queryKeys.aiQuotaSettings(),
+    queryFn: async () => {
+      const [usageRes, guardrailsRes] = await Promise.all([
+        authFetch(`${API_BASE}api/system/ai-gads-usage?days=30`),
+        authFetch(`${API_BASE}api/settings/ai-guardrails`),
+      ]);
+      if (!usageRes.ok || !guardrailsRes.ok) throw new Error("non-ok");
+      const usage      = (await usageRes.json())      as AiUsagePayload;
+      const guardrails = (await guardrailsRes.json()) as AiGuardrailsPayload;
+      return { usage, guardrails };
+    },
+  });
+
+  const usageData = aiQuotaQuery.data?.usage ?? null;
+  const loading   = aiQuotaQuery.isLoading;
+  const loadErr   = aiQuotaQuery.isError;
+
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const [usageRes, guardrailsRes] = await Promise.all([
-          authFetch(`${API_BASE}api/system/ai-gads-usage?days=30`),
-          authFetch(`${API_BASE}api/settings/ai-guardrails`),
-        ]);
-        if (!usageRes.ok || !guardrailsRes.ok) throw new Error("non-ok");
-        const usage      = (await usageRes.json())      as AiUsagePayload;
-        const guardrails = (await guardrailsRes.json()) as AiGuardrailsPayload;
-        if (!alive) return;
-        setUsageData(usage);
-        setLookbackInput(String(guardrails.maxLookbackDays));
-        setRowCapInput(String(guardrails.dailyRowCap));
-      } catch {
-        if (alive) setLoadErr(true);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
+    const g = aiQuotaQuery.data?.guardrails;
+    if (!g) return;
+    setLookbackInput(String(g.maxLookbackDays));
+    setRowCapInput(String(g.dailyRowCap));
+  }, [aiQuotaQuery.data]);
 
   const todayDate = new Date().toISOString().slice(0, 10);
   const todayRow  = usageData?.usage?.find((r) => r.date === todayDate) ?? null;
@@ -1255,13 +1255,8 @@ function AiQuotaTab() {
         body: JSON.stringify({ maxLookbackDays: lookback, dailyRowCap: rowCap }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.aiQuotaSettings() });
       toast({ title: "AI guardrails saved", description: "The new caps apply to all future AI queries." });
-      if (usageData) {
-        setUsageData((prev) => prev
-          ? { ...prev, guardrails: { maxLookbackDays: lookback, dailyRowCap: rowCap } }
-          : prev,
-        );
-      }
     } catch {
       toast({ title: "Failed to save guardrails", variant: "destructive" });
     } finally {
@@ -1285,7 +1280,13 @@ function AiQuotaTab() {
     return (
       <div className="space-y-0">
         <SectionTitle title="AI Quota" description="Monitor and control how many Google Ads rows the AI reads each day." />
-        <div className="py-10 text-center text-sm text-red-500">Failed to load AI usage data. Please try again.</div>
+        <div className="px-4 pt-2">
+          <QueryErrorState
+            title="Couldn't load AI usage data"
+            error={aiQuotaQuery.error}
+            onRetry={() => aiQuotaQuery.refetch()}
+          />
+        </div>
       </div>
     );
   }

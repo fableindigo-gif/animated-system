@@ -30,6 +30,7 @@ export const queryKeys = {
   auditLogEntry: (id: number) => ["audit-log", "entry", id] as const,
   dataModelingMetrics: () => ["data-modeling", "metrics"] as const,
   economicsSettings: () => ["settings", "economics"] as const,
+  aiQuotaSettings: () => ["settings", "ai-quota"] as const,
   feedEnrichmentStatus: () => ["feed-enrichment", "status"] as const,
   feedEnrichmentProducts: (page: number, filter: string) => ["feed-enrichment", "products", page, filter] as const,
   forensicEcom: (days: number) => ["forensic", "ecom", days] as const,

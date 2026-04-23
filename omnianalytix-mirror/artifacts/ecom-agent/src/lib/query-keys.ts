@@ -36,4 +36,5 @@ export const queryKeys = {
   forensicEcom: (days: number) => ["forensic", "ecom", days] as const,
   forensicLeadgen: (days: number) => ["forensic", "leadgen", days] as const,
   tasks: (status: string) => ["tasks", status] as const,
+  tasksAll: () => ["tasks"] as const,
 } as const;

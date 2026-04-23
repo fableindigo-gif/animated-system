@@ -742,7 +742,7 @@ function AIProposals() {
   // otherwise the count badges and other tabs go stale until the user
   // navigates away and back.
   const fetchTasks = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.tasksAll() }),
     [queryClient],
   );
 

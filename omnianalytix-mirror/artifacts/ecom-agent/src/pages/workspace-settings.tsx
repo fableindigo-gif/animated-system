@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useToast } from "@/hooks/use-toast";
@@ -449,6 +449,7 @@ interface EconomicsPayload {
 
 function EconomicsTab() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [cogsPctInput, setCogsPctInput]       = useState("");
   const [targetRoasInput, setTargetRoasInput] = useState("");
   const [overrideCount, setOverrideCount]     = useState(0);
@@ -513,6 +514,7 @@ function EconomicsTab() {
         body: JSON.stringify({ cogsPct, targetRoas }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.economicsSettings() });
       toast({ title: "Economics saved", description: "Dashboard tiles will reflect the new values shortly." });
     } catch {
       toast({ title: "Failed to save economics", variant: "destructive" });

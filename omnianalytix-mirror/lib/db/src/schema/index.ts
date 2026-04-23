@@ -58,3 +58,4 @@ export * from "./feedgen-runs";
 export * from "./ai-gads-usage";
 export * from "./app-settings";
 export * from "./shopping-insider-cost-samples";
+export * from "./access-requests";

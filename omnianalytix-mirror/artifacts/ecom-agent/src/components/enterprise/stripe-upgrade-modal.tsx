@@ -15,6 +15,29 @@ import { Button } from "@/components/ui/button";
 interface StripeUpgradeModalProps {
   open: boolean;
   onClose: () => void;
+  /**
+   * Optional dollar value the user was about to act on (e.g. projected
+   * daily savings of an approval card). When present, the headline is
+   * value-anchored ("You're about to save $312/day…") and the price block
+   * shows a payback estimate. Falls back to generic copy when null.
+   */
+  dollarImpact?: number | null;
+  /**
+   * Free-text describing the action that triggered the paywall — surfaced
+   * under the headline so the user remembers what they were doing.
+   */
+  actionLabel?: string | null;
+  /** "day" | "month" — controls how the dollar impact is framed. */
+  impactCadence?: "day" | "month";
+}
+
+const PRO_PRICE_USD_PER_MONTH = 99;
+
+function formatUsd(value: number): string {
+  if (value >= 10_000) return `$${Math.round(value / 1000)}k`;
+  if (value >= 1_000)  return `$${(value / 1000).toFixed(1)}k`;
+  if (value >= 100)    return `$${Math.round(value)}`;
+  return `$${value.toFixed(2)}`;
 }
 
 const PRO_FEATURES = [
@@ -24,7 +47,13 @@ const PRO_FEATURES = [
   { icon: "trending_up", label: "Priority diagnostics", detail: "Advanced PMax auditor, margin leak detection, and pipeline triage" },
 ];
 
-export function StripeUpgradeModal({ open, onClose }: StripeUpgradeModalProps) {
+export function StripeUpgradeModal({
+  open,
+  onClose,
+  dollarImpact = null,
+  actionLabel = null,
+  impactCadence = "day",
+}: StripeUpgradeModalProps) {
   const [loading, setLoading] = useState(false);
   const [stripeConfig, setStripeConfig] = useState<{ configured: boolean; publishableKey: string | null } | null>(null);
   const [error, setError] = useState("");
@@ -91,14 +120,44 @@ export function StripeUpgradeModal({ open, onClose }: StripeUpgradeModalProps) {
 
         <div className="p-5 space-y-5 overflow-y-auto flex-1">
           <div className="text-center">
-            <p className="text-lg font-bold text-on-surface font-[system-ui]">
-              Diagnosis is <span className="text-emerald-600">free</span>.
-              <br />
-              The cure is <span className="text-primary">Pro</span>.
-            </p>
-            <p className="text-xs text-on-surface-variant mt-2 font-mono">
-              Upgrade to execute automated platform fixes and rollback features.
-            </p>
+            {dollarImpact != null && dollarImpact > 0 ? (
+              <>
+                <p className="text-lg font-bold text-on-surface font-[system-ui]" data-testid="paywall-value-headline">
+                  You're about to {dollarImpact >= 0 ? "save" : "recover"}{" "}
+                  <span className="text-emerald-600">
+                    {formatUsd(Math.abs(dollarImpact))}/{impactCadence === "month" ? "mo" : "day"}
+                  </span>
+                  .
+                </p>
+                <p className="text-xs text-on-surface-variant mt-2 font-mono">
+                  Pro plans start at ${PRO_PRICE_USD_PER_MONTH}/mo.
+                  {(() => {
+                    const monthlyImpact = impactCadence === "day" ? Math.abs(dollarImpact) * 30 : Math.abs(dollarImpact);
+                    if (monthlyImpact >= PRO_PRICE_USD_PER_MONTH * 2) {
+                      const days = Math.max(1, Math.ceil(PRO_PRICE_USD_PER_MONTH / (impactCadence === "day" ? Math.abs(dollarImpact) : Math.abs(dollarImpact) / 30)));
+                      return ` Pays for itself in ~${days} day${days === 1 ? "" : "s"}.`;
+                    }
+                    return "";
+                  })()}
+                </p>
+                {actionLabel && (
+                  <p className="text-[11px] text-on-surface-variant mt-1.5 italic" data-testid="paywall-action-label">
+                    Action queued: {actionLabel}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-bold text-on-surface font-[system-ui]">
+                  Diagnosis is <span className="text-emerald-600">free</span>.
+                  <br />
+                  The cure is <span className="text-primary">Pro</span>.
+                </p>
+                <p className="text-xs text-on-surface-variant mt-2 font-mono">
+                  Upgrade to execute automated platform fixes and rollback features.
+                </p>
+              </>
+            )}
           </div>
 
           <div className="space-y-2">

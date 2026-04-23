@@ -4,8 +4,13 @@ import { db, teamMembers, workspaces } from "@workspace/db";
 import { parsePagination, paginatedResponse } from "../../lib/pagination";
 import { getOrgId, requireRole } from "../../middleware/rbac";
 import { generateInviteToken, verifyInviteToken } from "../../lib/invite-token";
+import accessRequestsRouter from "./access-requests";
 
 const router = Router();
+
+// Access requests must be mounted BEFORE the dynamic /:id routes below so the
+// path doesn't get captured by PATCH /:id / DELETE /:id.
+router.use("/access-requests", accessRequestsRouter);
 
 const VALID_ROLES = ["viewer", "analyst", "it", "manager", "admin"] as const;
 type ValidRole = typeof VALID_ROLES[number];

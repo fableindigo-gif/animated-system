@@ -25,7 +25,7 @@ type SettingsTab =
   | "account" | "personalization" | "security"
   | "workspace" | "notifications" | "budget" | "economics" | "integrations"
   | "fx-overrides" | "ai-quota"
-  | "billing" | "members";
+  | "billing" | "members" | "access-requests";
 
 interface NotifConfig {
   slackWebhook: string;
@@ -97,8 +97,9 @@ const NAV_GROUPS: NavGroup[] = [
     id: "account",
     title: "Account",
     items: [
-      { id: "billing",       label: "Billing",        icon: "credit_card",     adminOnly: true },
-      { id: "members",       label: "Members & seats",icon: "group",           adminOnly: true },
+      { id: "billing",         label: "Billing",         icon: "credit_card",     adminOnly: true },
+      { id: "members",         label: "Members & seats", icon: "group",           adminOnly: true },
+      { id: "access-requests", label: "Access requests", icon: "key",             adminOnly: true },
     ],
   },
   {
@@ -1519,6 +1520,193 @@ function BillingTab() {
 
 // ─── Members tab — links to client admin ─────────────────────────────────────
 
+// ─── Access requests tab — admin inbox ───────────────────────────────────────
+// Lists pending access requests from team members who hit an RBAC wall (e.g.
+// a viewer trying to approve a budget shift). Admin can grant (which clears
+// the row from pending; role updates still go through the members surface)
+// or dismiss the request. Also shows recent resolved history.
+
+interface AccessRequestRow {
+  id: number;
+  organizationId: number | null;
+  workspaceId: number | null;
+  requesterName: string;
+  requesterEmail: string;
+  requesterRole: string;
+  actionLabel: string;
+  actionContext: string;
+  reason: string;
+  status: "pending" | "granted" | "dismissed";
+  resolvedById: number | null;
+  resolvedByName: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+function relativeTime(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.round(ms / 60000);
+  if (m < 1)  return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.round(h / 24);
+  return `${d}d ago`;
+}
+
+function AccessRequestsTab() {
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const qc = useQueryClient();
+  const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const { data, isLoading, error, refetch } = useQuery<AccessRequestRow[]>({
+    queryKey: ["access-requests", filter],
+    queryFn: async () => {
+      const res = await authFetch(`${API_BASE}api/team/access-requests?status=${filter}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+    refetchOnWindowFocus: false,
+  });
+
+  async function resolve(id: number, status: "granted" | "dismissed") {
+    setBusyId(id);
+    try {
+      const res = await authFetch(`${API_BASE}api/team/access-requests/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast({
+        title: status === "granted" ? "Request granted" : "Request dismissed",
+        description: status === "granted"
+          ? "The request is cleared. Adjust the user's role in Members & seats if needed."
+          : "The request has been removed.",
+      });
+      qc.invalidateQueries({ queryKey: ["access-requests"] });
+    } catch (err) {
+      console.error("[AccessRequestsTab] PATCH failed", err);
+      toast({ title: "Action failed", description: "Could not update the request. Try again.", variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className="space-y-0">
+      <SectionTitle
+        title="Access requests"
+        description="Team members can ask for permission to run actions they don't have access to. Approve or dismiss them here."
+      />
+
+      <div className="py-4 flex items-center gap-2 border-b border-gray-100">
+        {(["pending", "all"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-semibold transition-colors",
+              filter === f ? "bg-[#1a73e8] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200",
+            )}
+          >
+            {f === "pending" ? "Pending" : "All"}
+          </button>
+        ))}
+        <button
+          onClick={() => refetch()}
+          className="ml-auto inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+        >
+          <span className="material-symbols-outlined text-sm">refresh</span>
+          Refresh
+        </button>
+      </div>
+
+      <div className="py-2">
+        {isLoading && <p className="text-sm text-gray-500 py-6 text-center">Loading requests…</p>}
+        {error && <QueryErrorState error={error as Error} onRetry={() => refetch()} />}
+        {!isLoading && !error && (data?.length ?? 0) === 0 && (
+          <div className="py-12 text-center">
+            <span className="material-symbols-outlined text-gray-300 text-5xl">inbox</span>
+            <p className="text-sm text-gray-500 mt-2">
+              {filter === "pending" ? "No pending requests." : "No access requests yet."}
+            </p>
+          </div>
+        )}
+        {!isLoading && !error && (data ?? []).map((r) => (
+          <div key={r.id} className="py-4 border-b border-gray-100 last:border-0 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#1a73e8]/10 text-[#1a73e8] flex items-center justify-center text-xs font-bold shrink-0">
+              {(r.requesterName || r.requesterEmail || "?").slice(0, 2).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <p className="text-sm font-semibold text-gray-900 truncate">{r.requesterName}</p>
+                <span className="text-xs text-gray-500 truncate">{r.requesterEmail}</span>
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-semibold">
+                  {r.requesterRole}
+                </span>
+              </div>
+              <p className="text-sm text-gray-700 mt-1">
+                Wants to run <span className="font-semibold">{r.actionLabel}</span>
+                {r.actionContext && <span className="text-gray-500"> · {r.actionContext}</span>}
+              </p>
+              {r.reason && <p className="text-xs text-gray-500 italic mt-1">"{r.reason}"</p>}
+              <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-400">
+                <span>{relativeTime(r.createdAt)}</span>
+                {r.status !== "pending" && (
+                  <>
+                    <span>·</span>
+                    <span className={cn(
+                      "px-1.5 py-0.5 rounded font-semibold",
+                      r.status === "granted" ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600",
+                    )}>
+                      {r.status}
+                    </span>
+                    {r.resolvedByName && <span>by {r.resolvedByName}</span>}
+                  </>
+                )}
+              </div>
+            </div>
+            {r.status === "pending" && (
+              <div className="flex flex-col gap-1.5 shrink-0">
+                <button
+                  onClick={() => resolve(r.id, "granted")}
+                  disabled={busyId === r.id}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold bg-[#1a73e8] hover:bg-[#1557b0] text-white transition-colors disabled:opacity-50"
+                >
+                  Grant
+                </button>
+                <button
+                  onClick={() => resolve(r.id, "dismissed")}
+                  disabled={busyId === r.id}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors disabled:opacity-50"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <SettingRow
+        label="Need to change someone's role?"
+        description="Granting a request clears it from the inbox but doesn't change permissions. Update roles from the members panel."
+      >
+        <button
+          onClick={() => navigate("/admin/clients")}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 transition-colors"
+        >
+          <span className="material-symbols-outlined text-sm">group</span>
+          Open members panel
+        </button>
+      </SettingRow>
+    </div>
+  );
+}
+
 function MembersTab() {
   const [, navigate] = useLocation();
   return (
@@ -1609,7 +1797,7 @@ function WorkspaceSelector() {
 const ALL_TABS: SettingsTab[] = [
   "account", "personalization", "security",
   "workspace", "notifications", "budget", "economics",
-  "integrations", "fx-overrides", "ai-quota", "billing", "members",
+  "integrations", "fx-overrides", "ai-quota", "billing", "members", "access-requests",
 ];
 
 export default function SettingsPage({ defaultTab = "account" }: { defaultTab?: SettingsTab }) {
@@ -1752,6 +1940,7 @@ export default function SettingsPage({ defaultTab = "account" }: { defaultTab?: 
             {effectiveTab === "integrations"    && <IntegrationsTab />}
             {effectiveTab === "billing"         && <BillingTab />}
             {effectiveTab === "members"         && <MembersTab />}
+            {effectiveTab === "access-requests" && <AccessRequestsTab />}
           </main>
 
         </div>

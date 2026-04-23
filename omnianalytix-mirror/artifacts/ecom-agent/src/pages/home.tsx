@@ -81,6 +81,41 @@ function generateSessionTitle(content: string): string {
   return "[Query] System Request";
 }
 
+// ─── Dollar-impact extractor ──────────────────────────────────────────────────
+// Inspects an approval card's diff rows and toolArgs for any monetary delta we
+// can show in the paywall headline. Returns the absolute dollar value of the
+// largest budget/spend/cost/savings/recovery row, or null if none found.
+
+function extractDollarImpact(card: ApprovalCardData | undefined): number | null {
+  if (!card) return null;
+
+  // 1. toolArgs may carry projected/recovery numbers directly.
+  const argKeys = ["projectedRecovery", "projectedSavings", "projectedDailySavings", "dailySavings", "savings", "dollarImpact"];
+  for (const k of argKeys) {
+    const v = card.toolArgs?.[k];
+    if (v != null) {
+      const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.-]/g, ""));
+      if (!isNaN(n) && Math.abs(n) > 0) return Math.abs(n);
+    }
+  }
+
+  // 2. Look at displayDiff for a budget/spend/cost/savings row with a delta.
+  let largest = 0;
+  for (const row of card.displayDiff ?? []) {
+    if (!/budget|spend|cost|savings|revenue|recovery|profit/i.test(row.label)) continue;
+    const from = parseFloat((row.from ?? "").replace(/[^0-9.-]/g, ""));
+    const to   = parseFloat((row.to ?? "").replace(/[^0-9.-]/g, ""));
+    if (!isNaN(from) && !isNaN(to)) {
+      const delta = Math.abs(to - from);
+      if (delta > largest) largest = delta;
+    } else if (!isNaN(to)) {
+      const v = Math.abs(to);
+      if (v > largest) largest = v;
+    }
+  }
+  return largest > 0 ? largest : null;
+}
+
 // ─── Rich Card Types ───────────────────────────────────────────────────────────
 
 type RichCardType =
@@ -156,8 +191,16 @@ export default function Home() {
   // Undo toast — persistent toast after successful execution
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
 
-  // Stripe upgrade modal — gated behind subscription tier
+  // Stripe upgrade modal — gated behind subscription tier. We carry the
+  // dollar impact + action label of whatever the user was about to approve
+  // so the modal can render value-anchored copy ("You're about to save
+  // $312/day…") instead of generic "upgrade to Pro" boilerplate.
   const [stripeModalOpen, setStripeModalOpen] = useState(false);
+  const [stripeContext, setStripeContext] = useState<{
+    dollarImpact: number | null;
+    actionLabel: string | null;
+    impactCadence: "day" | "month";
+  }>({ dollarImpact: null, actionLabel: null, impactCadence: "day" });
   const { isPro } = useSubscription();
 
   // Onboarding wizard
@@ -290,6 +333,41 @@ export default function Home() {
 
   // ─── Approval Handlers ──────────────────────────────────────────────────────
 
+  // Fire-and-forget access request: sends an in-app request to workspace
+  // admins describing the action the current user was blocked on. Admins
+  // grant or dismiss it from settings → Access requests. We always show a
+  // confirmation toast so the user knows the request landed.
+  const requestAccess = useCallback(async (actionLabel: string, toolName: string | null) => {
+    try {
+      const res = await authPost(`${API_BASE}api/team/access-requests`, {
+        actionLabel,
+        actionContext: toolName ?? "",
+        workspaceId: activeWorkspace?.id ?? null,
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      trackEvent("access_request_sent", {
+        trigger: "rbac_block",
+        tool_name: toolName ?? undefined,
+        action_label: actionLabel,
+      });
+      toast({
+        title: "Request sent",
+        description: `Your workspace admin has been notified about “${actionLabel}”.`,
+      });
+    } catch (err) {
+      console.error("[Home] access-request failed", err);
+      toast({
+        title: "Couldn't send request",
+        description: "Something went wrong sending your access request. Try again in a moment.",
+        variant: "destructive",
+        action: {
+          label: "Try again",
+          onClick: () => { void requestAccess(actionLabel, toolName); },
+        },
+      });
+    }
+  }, [activeWorkspace, toast]);
+
   const updateCard = useCallback((snapshotId: number, patch: Partial<ApprovalCardData>) => {
     setApprovalCards((prev) => {
       const next = new Map(prev);
@@ -300,12 +378,19 @@ export default function Home() {
   }, []);
 
   const handleApprove = useCallback(async (snapshotId: number) => {
+    const card = approvalCards.get(snapshotId);
     if (!isPro) {
-      trackEvent("paywall_viewed", { trigger: "approval_action" });
+      const dollarImpact = extractDollarImpact(card);
+      const actionLabel = card?.toolDisplayName ?? null;
+      setStripeContext({ dollarImpact, actionLabel, impactCadence: "day" });
+      trackEvent("paywall_viewed", {
+        trigger: "approval_action",
+        dollar_impact: dollarImpact ?? undefined,
+        tool_name: card?.toolName ?? undefined,
+      });
       setStripeModalOpen(true);
       throw new Error("Upgrade required");
     }
-    const card = approvalCards.get(snapshotId);
     updateCard(snapshotId, { status: "executing" as ApprovalStatus });
     try {
       const resp = await authFetch(`${API_BASE}api/actions/${snapshotId}/approve`, { method: "POST" });
@@ -313,10 +398,25 @@ export default function Home() {
         const body = await resp.json().catch(() => ({})) as { code?: string; message?: string };
         updateCard(snapshotId, { status: "pending" as ApprovalStatus });
         if (body.code === "RBAC_INSUFFICIENT_ROLE" || body.code === "RBAC_NO_IDENTITY") {
-          toast({ title: "Permission Denied", description: body.message || "You do not have permission for this action. Contact your workspace admin.", variant: "destructive" });
+          const actionLabel = card?.toolDisplayName ?? "this action";
+          toast({
+            title: "Permission needed",
+            description: body.message || `You don't have permission to approve ${actionLabel}. Send a one-click request to your workspace admin.`,
+            variant: "destructive",
+            action: {
+              label: "Request access",
+              onClick: () => { void requestAccess(actionLabel, card?.toolName ?? null); },
+            },
+          });
           throw new Error(body.message || "Insufficient permissions");
         }
-        trackEvent("paywall_viewed", { trigger: "rbac_fallback" });
+        const dollarImpact = extractDollarImpact(card);
+        setStripeContext({ dollarImpact, actionLabel: card?.toolDisplayName ?? null, impactCadence: "day" });
+        trackEvent("paywall_viewed", {
+          trigger: "rbac_fallback",
+          dollar_impact: dollarImpact ?? undefined,
+          tool_name: card?.toolName ?? undefined,
+        });
         setStripeModalOpen(true);
         throw new Error("Upgrade required");
       }
@@ -1088,6 +1188,9 @@ export default function Home() {
     <StripeUpgradeModal
       open={stripeModalOpen}
       onClose={() => setStripeModalOpen(false)}
+      dollarImpact={stripeContext.dollarImpact}
+      actionLabel={stripeContext.actionLabel}
+      impactCadence={stripeContext.impactCadence}
     />
 
     <CommandPalette

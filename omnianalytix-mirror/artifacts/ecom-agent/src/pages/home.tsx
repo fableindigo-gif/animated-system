@@ -464,7 +464,7 @@ export default function Home() {
       updateCard(snapshotId, { status: "failed" as ApprovalStatus, executionMessage: err instanceof Error ? err.message : "Network error during execution." });
       throw err;
     }
-  }, [approvalCards, updateCard, isPro]);
+  }, [approvalCards, updateCard, isPro, adminName, requestAccess, toast]);
 
   const handlePreview = useCallback(async (snapshotId: number) => {
     const resp = await authFetch(`${API_BASE}api/actions/${snapshotId}/preview`, { method: "POST" });

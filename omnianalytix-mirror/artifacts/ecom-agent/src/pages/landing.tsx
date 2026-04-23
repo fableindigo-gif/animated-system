@@ -1349,7 +1349,7 @@ export default function LandingPage({
             <p className="text-xs font-bold text-slate-900 tracking-widest uppercase mb-6">Product</p>
             <ul className="space-y-3">
               {["AI Platform", "Dashboards", "Integrations", "Security", "Enterprise"].map((item) => (
-                <li key={item}><a href="#" className="text-slate-500 text-sm hover:text-slate-900 transition-colors">{item}</a></li>
+                <li key={item}><a href="#" onClick={(e) => e.preventDefault()} className="text-slate-500 text-sm hover:text-slate-900 transition-colors cursor-default">{item}</a></li>
               ))}
             </ul>
           </div>
@@ -1357,7 +1357,7 @@ export default function LandingPage({
             <p className="text-xs font-bold text-slate-900 tracking-widest uppercase mb-6">Resources</p>
             <ul className="space-y-3">
               {["API Docs", "Help Center", "Blog", "Changelog", "Status"].map((item) => (
-                <li key={item}><a href="#" className="text-slate-500 text-sm hover:text-slate-900 transition-colors">{item}</a></li>
+                <li key={item}><a href="#" onClick={(e) => e.preventDefault()} className="text-slate-500 text-sm hover:text-slate-900 transition-colors cursor-default">{item}</a></li>
               ))}
             </ul>
           </div>
@@ -1365,7 +1365,7 @@ export default function LandingPage({
             <p className="text-xs font-bold text-slate-900 tracking-widest uppercase mb-6">Legal</p>
             <ul className="space-y-3">
               {["Privacy Policy", "Terms of Service", "GDPR", "Cookie Policy"].map((item) => (
-                <li key={item}><a href="#" className="text-slate-500 text-sm hover:text-slate-900 transition-colors">{item}</a></li>
+                <li key={item}><a href="#" onClick={(e) => e.preventDefault()} className="text-slate-500 text-sm hover:text-slate-900 transition-colors cursor-default">{item}</a></li>
               ))}
             </ul>
           </div>

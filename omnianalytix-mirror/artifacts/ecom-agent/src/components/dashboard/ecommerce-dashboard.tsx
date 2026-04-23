@@ -988,10 +988,12 @@ export function EcommerceDashboard({ onChat }: { onChat?: (msg: string) => void 
                   <>"Connect your ad platforms to unlock AI-powered insights — POAS analysis, margin leak detection, and budget optimisation recommendations."</>
                 )}
               </p>
-              <button className="text-xs font-bold uppercase flex items-center gap-1 transition-all hover:gap-2" style={{ color: T.primaryContainer }}>
-                {kpis?.hasData ? "Deploy Strategy" : "Get Started"}
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
-              </button>
+              <Link href={kpis?.hasData ? "/budget-pacing" : "/connections"}>
+                <button className="text-xs font-bold uppercase flex items-center gap-1 transition-all hover:gap-2" style={{ color: T.primaryContainer }}>
+                  {kpis?.hasData ? "Deploy Strategy" : "Get Started"}
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
+                </button>
+              </Link>
             </div>
           </div>
 

@@ -322,7 +322,14 @@ function NotificationsTab() {
 
   async function handleSave() {
     setSaving(true);
-    localStorage.setItem("omni_notif_config", JSON.stringify(notif));
+    try {
+      localStorage.setItem("omni_notif_config", JSON.stringify(notif));
+    } catch (err) {
+      // Safari Private Mode and quota-exceeded throw on localStorage writes.
+      // The webhook still saves to the server below; only the local notif
+      // preferences are lost. Surface a soft warning instead of crashing.
+      console.warn("[workspace-settings] Could not persist notification config locally:", err);
+    }
     if (activeWorkspace && webhookUrl !== (activeWorkspace.webhookUrl ?? "")) {
       try {
         const res = await authFetch(`${API_BASE}api/workspaces/${activeWorkspace.id}`, {
@@ -1024,8 +1031,19 @@ function PersonalizationTab() {
   const { toast } = useToast();
 
   function persist(key: string, value: string, label: string) {
-    localStorage.setItem(key, value);
-    toast({ title: `${label} updated` });
+    try {
+      localStorage.setItem(key, value);
+      toast({ title: `${label} updated` });
+    } catch (err) {
+      // Safari Private Mode / quota-exceeded throw here. Without try/catch
+      // the whole settings page would crash. Tell the user instead.
+      console.warn("[workspace-settings] localStorage write failed:", err);
+      toast({
+        title: `Could not save ${label.toLowerCase()}`,
+        description: "Your browser is blocking local storage. Try a normal (non-private) window.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (

@@ -2357,7 +2357,7 @@ function QualityFixesView(props: {
                 {approveResult.duplicate} were already pending in the Approval Queue.
               </p>
             )}
-            <a href="/task-board" className="text-xs text-emerald-700 hover:underline mt-1 inline-flex items-center gap-1">
+            <a href="/tasks" className="text-xs text-emerald-700 hover:underline mt-1 inline-flex items-center gap-1">
               View in Approval Queue <ArrowUpRight className="w-3 h-3" />
             </a>
           </div>

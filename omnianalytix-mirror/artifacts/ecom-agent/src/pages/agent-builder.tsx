@@ -45,6 +45,7 @@ export default function AgentBuilderPage() {
   const [, setLocation]        = useLocation();
   const [agents, setAgents]    = useState<AiAgent[]>([]);
   const [loading, setLoading]  = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [search, setSearch]    = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -55,12 +56,17 @@ export default function AgentBuilderPage() {
 
   const fetchAgents = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res  = await authFetch(`${API_BASE}api/ai-agents`);
-      if (res.ok) {
-        const data = await res.json() as { agents: AiAgent[] };
-        setAgents(data.agents);
+      if (!res.ok) {
+        setLoadError(`Could not load agents (HTTP ${res.status}).`);
+        return;
       }
+      const data = await res.json() as { agents: AiAgent[] };
+      setAgents(data.agents);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Network error — could not load agents.");
     } finally { setLoading(false); }
   }, []);
 
@@ -230,6 +236,16 @@ export default function AgentBuilderPage() {
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="rounded-2xl border border-slate-200 bg-white p-5 h-48 animate-pulse" />
             ))}
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-16 px-6 bg-rose-50/60 border border-rose-100 rounded-2xl">
+            <p className="text-sm font-semibold text-rose-700">{loadError}</p>
+            <button
+              onClick={fetchAgents}
+              className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-white border border-rose-200 text-rose-700 rounded-xl text-xs font-bold hover:bg-rose-100 transition-all"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Try again
+            </button>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-4">

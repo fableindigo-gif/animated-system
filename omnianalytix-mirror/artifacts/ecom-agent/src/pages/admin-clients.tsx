@@ -19,6 +19,7 @@ interface OrgRow {
 export default function AdminClientsPage() {
   const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -27,13 +28,18 @@ export default function AdminClientsPage() {
   const [form, setForm] = useState({ name: "", slug: "", adminEmail: "", goal: "ecom" as "ecom" | "leadgen" | "hybrid" });
 
   const fetchOrgs = useCallback(async () => {
+    setLoadError(null);
     try {
       const res = await authFetch(`${BASE}/api/admin/organizations`);
-      if (res.ok) {
-        const data = await res.json();
-        setOrgs(data);
+      if (!res.ok) {
+        setLoadError(`Could not load organizations (HTTP ${res.status}).`);
+        return;
       }
-    } catch { /* ignore */ } finally {
+      const data = await res.json();
+      setOrgs(data);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Network error — could not load organizations.");
+    } finally {
       setLoading(false);
     }
   }, []);
@@ -113,6 +119,16 @@ export default function AdminClientsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-on-surface-variant" />
+        </div>
+      ) : loadError ? (
+        <div className="text-center py-16 px-6 bg-rose-50/60 border border-rose-100 rounded-2xl">
+          <p className="text-sm font-semibold text-rose-700">{loadError}</p>
+          <button
+            onClick={fetchOrgs}
+            className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-white border border-rose-200 text-rose-700 rounded-xl text-xs font-bold hover:bg-rose-100 transition-all"
+          >
+            Try again
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">

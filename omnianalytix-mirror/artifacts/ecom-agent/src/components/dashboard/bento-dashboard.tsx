@@ -87,22 +87,25 @@ function PLMiniChart({ workspaceId, sym }: { workspaceId: number; sym: string })
   const [data, setData] = useState<FinRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [loadError, setLoadError] = useState(false);
   useEffect(() => {
     let cancelled = false;
+    setLoadError(false);
     (async () => {
       try {
         const res = await authFetch(`${API_BASE}api/financials?workspaceId=${workspaceId}`);
-        if (res.ok && !cancelled) {
-          const json = await res.json();
-          const records: Array<{ month: string; revenue: number; netIncome: number }> = json.records ?? [];
-          setData(records.slice(-6).map((r) => ({
-            month: new Date(r.month + "-01").toLocaleString("default", { month: "short" }),
-            revenue: r.revenue,
-            netIncome: r.netIncome,
-          })));
-        }
-      } catch { /* silent */ }
-      finally { if (!cancelled) setLoading(false); }
+        if (cancelled) return;
+        if (!res.ok) { setLoadError(true); return; }
+        const json = await res.json();
+        const records: Array<{ month: string; revenue: number; netIncome: number }> = json.records ?? [];
+        setData(records.slice(-6).map((r) => ({
+          month: new Date(r.month + "-01").toLocaleString("default", { month: "short" }),
+          revenue: r.revenue,
+          netIncome: r.netIncome,
+        })));
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
   }, [workspaceId]);
@@ -125,6 +128,8 @@ function PLMiniChart({ workspaceId, sym }: { workspaceId: number; sym: string })
         <div className="flex-1 flex items-center justify-center">
           <Skel w="w-full" h="h-32" />
         </div>
+      ) : loadError ? (
+        <div className="flex-1 flex items-center justify-center text-xs text-rose-500">Couldn't load financials</div>
       ) : data.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-xs text-slate-400">No financial data yet</div>
       ) : (
@@ -166,19 +171,22 @@ function PipelineSnapshot({ workspaceId, sym }: { workspaceId: number; sym: stri
   const [deals, setDeals] = useState<Array<{ dealStage: string; dealSize: number; dealName: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [totalClosed, setTotalClosed] = useState(0);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setLoadError(false);
     (async () => {
       try {
         const res = await authFetch(`${API_BASE}api/etl/crm-leads?workspaceId=${workspaceId}`);
-        if (res.ok && !cancelled) {
-          const json = await res.json();
-          setDeals((json.deals ?? []).slice(0, 5));
-          setTotalClosed(json.totals?.closedWon ?? 0);
-        }
-      } catch { /* silent */ }
-      finally { if (!cancelled) setLoading(false); }
+        if (cancelled) return;
+        if (!res.ok) { setLoadError(true); return; }
+        const json = await res.json();
+        setDeals((json.deals ?? []).slice(0, 5));
+        setTotalClosed(json.totals?.closedWon ?? 0);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
   }, [workspaceId]);
@@ -205,6 +213,8 @@ function PipelineSnapshot({ workspaceId, sym }: { workspaceId: number; sym: stri
         <div className="flex flex-col gap-2">
           {[1, 2, 3].map((i) => <Skel key={i} w="w-full" h="h-6" />)}
         </div>
+      ) : loadError ? (
+        <p className="text-xs text-rose-500 text-center py-6">Couldn't load pipeline</p>
       ) : stages.length === 0 ? (
         <p className="text-xs text-slate-400 text-center py-6">No pipeline data</p>
       ) : (
@@ -251,18 +261,21 @@ const PRIORITY_DOT: Record<string, string> = {
 function TaskPreview() {
   const [tasks, setTasks]   = useState<OpsPreviewTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    setLoadError(false);
     (async () => {
       try {
         const res = await authFetch(`${BASE}/api/tasks/ops`);
-        if (res.ok && !cancelled) {
-          const json = await res.json();
-          setTasks((json.tasks ?? []).slice(0, 6));
-        }
-      } catch { /* silent */ }
-      finally { if (!cancelled) setLoading(false); }
+        if (cancelled) return;
+        if (!res.ok) { setLoadError(true); return; }
+        const json = await res.json();
+        setTasks((json.tasks ?? []).slice(0, 6));
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -286,6 +299,8 @@ function TaskPreview() {
           <div className="flex flex-col gap-2 px-4 pb-4">
             {[1, 2, 3, 4].map((i) => <Skel key={i} w="w-full" h="h-11" />)}
           </div>
+        ) : loadError ? (
+          <p className="text-xs text-rose-500 text-center py-8">Couldn't load tasks</p>
         ) : tasks.length === 0 ? (
           <p className="text-xs text-slate-400 text-center py-8">No tasks yet</p>
         ) : (

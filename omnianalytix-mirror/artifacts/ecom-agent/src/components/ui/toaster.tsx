@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import {
   Toast,
@@ -8,6 +9,8 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast"
+
+const VISIBLE_LIMIT = 3
 
 function isActionInput(
   value: unknown,
@@ -22,11 +25,15 @@ function isActionInput(
 }
 
 export function Toaster() {
-  const { toasts } = useToast()
+  const { toasts, dismiss } = useToast()
+  const [expanded, setExpanded] = useState(false)
+
+  const overflowCount = Math.max(0, toasts.length - VISIBLE_LIMIT)
+  const visibleToasts = expanded ? toasts : toasts.slice(0, VISIBLE_LIMIT)
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {visibleToasts.map(function ({ id, title, description, action, ...props }) {
         const renderedAction = isActionInput(action) ? (
           <ToastAction
             altText={action.altText ?? action.label}
@@ -50,6 +57,37 @@ export function Toaster() {
           </Toast>
         )
       })}
+      {overflowCount > 0 && !expanded && (
+        <Toast
+          key="__toast_overflow__"
+          open={true}
+          onOpenChange={() => {}}
+          className="cursor-pointer"
+          onClick={() => setExpanded(true)}
+        >
+          <div className="grid gap-1">
+            <ToastTitle>+{overflowCount} more {overflowCount === 1 ? "notification" : "notifications"}</ToastTitle>
+            <ToastDescription>Click to expand</ToastDescription>
+          </div>
+        </Toast>
+      )}
+      {expanded && toasts.length > VISIBLE_LIMIT && (
+        <Toast
+          key="__toast_collapse__"
+          open={true}
+          onOpenChange={() => {}}
+          className="cursor-pointer"
+          onClick={() => {
+            setExpanded(false)
+            toasts.slice(VISIBLE_LIMIT).forEach((t) => dismiss(t.id))
+          }}
+        >
+          <div className="grid gap-1">
+            <ToastTitle>Collapse & dismiss older</ToastTitle>
+            <ToastDescription>Hide {toasts.length - VISIBLE_LIMIT} older notifications</ToastDescription>
+          </div>
+        </Toast>
+      )}
       <ToastViewport />
     </ToastProvider>
   )

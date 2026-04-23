@@ -381,7 +381,7 @@ export default function HybridDashboard() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100dvh", background: BG, color: TEXT, fontFamily: "system-ui, sans-serif" }}>
       {palOpen && <CommandPalette onClose={() => setPalOpen(false)} />}
 
       <div style={{ maxWidth: 1440, margin: "0 auto", padding: "24px 24px 60px" }}>

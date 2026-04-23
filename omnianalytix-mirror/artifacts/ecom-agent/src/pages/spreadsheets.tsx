@@ -283,7 +283,7 @@ export default function Spreadsheets() {
                     <Loader2 className="w-6 h-6 animate-spin text-primary-m3" />
                   </div>
                 ) : (
-                  <div className="overflow-auto max-h-[calc(100vh-280px)]">
+                  <div className="overflow-auto max-h-[calc(100dvh-280px)]">
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 bg-surface-variant/20 z-10">
                         <tr>

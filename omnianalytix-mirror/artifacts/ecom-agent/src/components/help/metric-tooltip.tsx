@@ -4,17 +4,31 @@ interface MetricTooltipProps {
   content: string;
 }
 
+// Detect coarse-pointer (touch) devices once at module load. On touch we skip
+// hover handlers so a tap toggles cleanly without an immediate close from a
+// synthesized mouseleave event.
+const isTouchDevice =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(hover: none), (pointer: coarse)").matches;
+
 export function MetricTooltip({ content }: MetricTooltipProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Close when clicking/tapping outside. Listen to both mousedown and
+  // touchstart so the tooltip dismisses correctly on touch devices.
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
   }, [open]);
 
   return (
@@ -22,10 +36,11 @@ export function MetricTooltip({ content }: MetricTooltipProps) {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-outline-variant hover:text-on-surface-variant hover:bg-surface-container-low transition-colors"
+        onMouseEnter={isTouchDevice ? undefined : () => setOpen(true)}
+        onMouseLeave={isTouchDevice ? undefined : () => setOpen(false)}
+        className="inline-flex items-center justify-center w-6 h-6 sm:w-3.5 sm:h-3.5 rounded-full text-outline-variant hover:text-on-surface-variant hover:bg-surface-container-low transition-colors"
         aria-label="Learn more about this metric"
+        aria-expanded={open}
       >
         <span className="material-symbols-outlined" style={{ fontSize: 12 }}>help</span>
       </button>

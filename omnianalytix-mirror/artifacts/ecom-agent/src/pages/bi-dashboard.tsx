@@ -212,7 +212,7 @@ export default function BiDashboard() {
   }[health];
 
   return (
-    <div style={{ minHeight: "100vh", background: bg, color: text, fontFamily: "system-ui, -apple-system, sans-serif" }}>
+    <div style={{ minHeight: "100dvh", background: bg, color: text, fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "28px 28px 48px" }}>
 
         {/* ── Header ── */}

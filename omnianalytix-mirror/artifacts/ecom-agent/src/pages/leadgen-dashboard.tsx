@@ -198,7 +198,7 @@ export default function LeadgenDashboard() {
   const hasData = data && data.kpis.totalLeads > 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100dvh", background: BG, color: TEXT, fontFamily: "system-ui, sans-serif" }}>
       <div style={{ maxWidth: 1400, margin: "0 auto", padding: "26px 26px 56px" }}>
 
         {/* ── Header ── */}

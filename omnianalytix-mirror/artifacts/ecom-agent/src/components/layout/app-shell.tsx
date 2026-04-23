@@ -16,9 +16,17 @@ import { ProductTour } from "@/components/onboarding/product-tour";
 import { OmniCopilotWidget } from "@/components/copilot/floating-widget";
 import { useListConnections } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { hasDirtyState, listDirtyKeys, clearAllDirty } from "@/lib/dirty-state";
 
 const BASE       = import.meta.env.BASE_URL.replace(/\/$/, "");
 const SIDEBAR_BG = "rgb(0, 74, 198)";
+
+// OS detection for the ⌘K / Ctrl K command-palette hint chip. Computed once at
+// module load — `navigator.platform` is stable per session.
+const IS_MAC =
+  typeof navigator !== "undefined" &&
+  /(Mac|iPhone|iPad|iPod)/i.test(navigator.platform || navigator.userAgent || "");
+const MOD_KEY_LABEL = IS_MAC ? "⌘K" : "Ctrl K";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -213,7 +221,8 @@ function getUserInitials(): string {
   return "A";
 }
 
-function handleSignOut() {
+function performSignOut() {
+  clearAllDirty();
   localStorage.removeItem("omnianalytix_gate_token");
   localStorage.removeItem("omni_current_user_id");
   localStorage.removeItem("omni_user_name");
@@ -222,6 +231,18 @@ function handleSignOut() {
   localStorage.removeItem("omni_user_role");
   localStorage.removeItem("omni_preauth_done");
   window.location.href = import.meta.env.BASE_URL || "/";
+}
+
+function handleSignOut() {
+  if (hasDirtyState()) {
+    const dirty = listDirtyKeys();
+    const label = dirty.length === 1 ? "an unsaved change" : `${dirty.length} unsaved changes`;
+    const confirmed = window.confirm(
+      `You have ${label} (${dirty.join(", ")}). Sign out anyway and discard them?`,
+    );
+    if (!confirmed) return;
+  }
+  performSignOut();
 }
 
 // ─── SidebarGroup — collapsible accordion + slim (icon-only) mode ─────────────
@@ -623,7 +644,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <LazyMotion features={domAnimation} strict>
-    <div className="h-screen w-full bg-surface text-on-surface overflow-hidden flex flex-col">
+    <div className="h-dvh w-full bg-surface text-on-surface overflow-hidden flex flex-col">
 
       {/* ── Top Header — glassmorphism ─────────────────────────────────── */}
       <header
@@ -657,7 +678,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <Search className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span className="text-xs text-slate-500 flex-1 text-left">Search commands…</span>
-              <kbd className="ml-auto text-[10px] font-mono text-slate-400 bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-sm">⌘K</kbd>
+              <kbd className="ml-auto text-[10px] font-mono text-slate-400 bg-white border border-slate-200 rounded px-1.5 py-0.5 shadow-sm">{MOD_KEY_LABEL}</kbd>
+            </button>
+
+            {/* Compact ⌘K chip — visible on small screens where the full
+                "Search commands" pill is hidden. Gives mobile/narrow users a
+                discoverable affordance for the command palette. */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="sm:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[10px] font-mono text-slate-500 bg-slate-100/80 border border-slate-200/80 hover:bg-slate-100 transition-colors min-h-[36px]"
+              aria-label="Open command palette"
+              title={`Open command palette (${MOD_KEY_LABEL})`}
+            >
+              <Search className="w-3 h-3 text-slate-400" />
+              <span>{MOD_KEY_LABEL}</span>
             </button>
 
             {firstName && (
@@ -763,7 +797,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ── Desktop Sidebar (collapsible) ────────────────────────────────── */}
       <m.aside
-        className="h-screen fixed left-0 top-0 hidden lg:flex flex-col z-40 overflow-hidden"
+        className="h-dvh fixed left-0 top-0 hidden lg:flex flex-col z-40 overflow-hidden"
         initial={false}
         animate={{ width: sidebarCollapsed ? 72 : 260 }}
         transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}

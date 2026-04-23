@@ -357,7 +357,7 @@ export default function AiConversationsPage() {
 
   return (
     <AppShell>
-      <div className="flex h-[calc(100vh-64px)] bg-slate-50">
+      <div className="flex h-[calc(100dvh-64px)] bg-slate-50">
         {/* ── Sidebar: session list ──────────────────────────────────────── */}
         <aside className="w-72 shrink-0 border-r border-slate-200 bg-white flex flex-col">
           <div className="p-3 border-b border-slate-200 flex items-center gap-2">

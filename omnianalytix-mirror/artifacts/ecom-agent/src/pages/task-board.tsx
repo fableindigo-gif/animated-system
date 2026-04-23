@@ -7,6 +7,7 @@ import { authFetch, authPatch } from "@/lib/auth-fetch";
 import { queryKeys } from "@/lib/query-keys";
 import { QueryErrorState } from "@/components/query-error-state";
 import { useToast } from "@/hooks/use-toast";
+import { markDirty, clearDirty } from "@/lib/dirty-state";
 import { SiGoogleads, SiMeta, SiShopify, SiGoogle } from "react-icons/si";
 import {
   Search, ArrowRightLeft, BookOpen, ChevronDown, ChevronUp, User,
@@ -182,6 +183,26 @@ function CommandCenter() {
       return sortDir === "asc" ? diff : -diff;
     });
   }, [data, statusFilter, priorityFilter, search, sortKey, sortDir]);
+
+  // ── Dirty-state tracking ─────────────────────────────────────────────────
+  // Sign-out guard prompts the user when they have unsaved view state. Active
+  // filters/search count as "tasks: filters", and an in-progress new-task
+  // form counts as "tasks: draft".
+  useEffect(() => {
+    const filtersDirty = statusFilter !== "all" || priorityFilter !== "all" || search.trim().length > 0;
+    if (filtersDirty) markDirty("tasks: filters"); else clearDirty("tasks: filters");
+    return () => clearDirty("tasks: filters");
+  }, [statusFilter, priorityFilter, search]);
+
+  useEffect(() => {
+    const draftDirty = showNewForm && (
+      newTitle.trim().length > 0 ||
+      newAssignee.trim().length > 0 ||
+      newDesc.trim().length > 0
+    );
+    if (draftDirty) markDirty("tasks: draft"); else clearDirty("tasks: draft");
+    return () => clearDirty("tasks: draft");
+  }, [showNewForm, newTitle, newAssignee, newDesc]);
 
   async function cycleStatus(task: OpsTask) {
     const next: Record<OpsStatus, OpsStatus> = {

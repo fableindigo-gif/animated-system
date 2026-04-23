@@ -28,8 +28,12 @@ export function Toaster() {
   const { toasts, dismiss } = useToast()
   const [expanded, setExpanded] = useState(false)
 
-  const overflowCount = Math.max(0, toasts.length - VISIBLE_LIMIT)
-  const visibleToasts = expanded ? toasts : toasts.slice(0, VISIBLE_LIMIT)
+  // Only count toasts that are still open (Radix sets `open: false` during the
+  // exit animation but keeps them in the array until the removal delay elapses).
+  // Counting closed toasts would inflate "+N more" with items the user can't see.
+  const liveToasts = toasts.filter((t) => t.open !== false)
+  const overflowCount = Math.max(0, liveToasts.length - VISIBLE_LIMIT)
+  const visibleToasts = expanded ? liveToasts : liveToasts.slice(0, VISIBLE_LIMIT)
 
   return (
     <ToastProvider>
@@ -71,7 +75,7 @@ export function Toaster() {
           </div>
         </Toast>
       )}
-      {expanded && toasts.length > VISIBLE_LIMIT && (
+      {expanded && liveToasts.length > VISIBLE_LIMIT && (
         <Toast
           key="__toast_collapse__"
           open={true}
@@ -79,12 +83,12 @@ export function Toaster() {
           className="cursor-pointer"
           onClick={() => {
             setExpanded(false)
-            toasts.slice(VISIBLE_LIMIT).forEach((t) => dismiss(t.id))
+            liveToasts.slice(VISIBLE_LIMIT).forEach((t) => dismiss(t.id))
           }}
         >
           <div className="grid gap-1">
             <ToastTitle>Collapse & dismiss older</ToastTitle>
-            <ToastDescription>Hide {toasts.length - VISIBLE_LIMIT} older notifications</ToastDescription>
+            <ToastDescription>Hide {liveToasts.length - VISIBLE_LIMIT} older notifications</ToastDescription>
           </div>
         </Toast>
       )}

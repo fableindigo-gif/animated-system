@@ -25,7 +25,7 @@ function isActionInput(
 }
 
 export function Toaster() {
-  const { toasts, dismiss } = useToast()
+  const { toasts } = useToast()
   const [expanded, setExpanded] = useState(false)
 
   // Only count toasts that are still open (Radix sets `open: false` during the
@@ -81,14 +81,11 @@ export function Toaster() {
           open={true}
           onOpenChange={() => {}}
           className="cursor-pointer"
-          onClick={() => {
-            setExpanded(false)
-            liveToasts.slice(VISIBLE_LIMIT).forEach((t) => dismiss(t.id))
-          }}
+          onClick={() => setExpanded(false)}
         >
           <div className="grid gap-1">
-            <ToastTitle>Collapse & dismiss older</ToastTitle>
-            <ToastDescription>Hide {liveToasts.length - VISIBLE_LIMIT} older notifications</ToastDescription>
+            <ToastTitle>Collapse</ToastTitle>
+            <ToastDescription>Re-hide {liveToasts.length - VISIBLE_LIMIT} older notifications (they keep their auto-dismiss timers)</ToastDescription>
           </div>
         </Toast>
       )}

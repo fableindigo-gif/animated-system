@@ -1727,6 +1727,18 @@ export default function FeedEnrichmentPage() {
               onRetry={() => productsQuery.refetch()}
               compact
             />
+          ) : productsQuery.isLoading ? (
+            <div className="divide-y divide-slate-100">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-12 h-12 rounded-lg bg-slate-100 animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-2/3 bg-slate-100 rounded animate-pulse" />
+                    <div className="h-2.5 w-1/3 bg-slate-100 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : products.length === 0 ? (
             <div className="flex flex-col items-center py-12 gap-3">
               <ShoppingBag className="w-8 h-8 text-slate-200" />

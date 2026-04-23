@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useListConnections, CreateConnectionBodyPlatform, getListConnectionsQueryKey } from "@workspace/api-client-react";
 import { GoogleWorkspaceSetupDialog } from "@/components/connections/google-workspace-setup-dialog";
 import { MetaSetupDialog, MetaOAuthDialog } from "@/components/connections/meta-oauth-dialog";
@@ -627,19 +627,24 @@ export default function Connections() {
     return () => window.clearInterval(id);
   }, [isLoading, setLocation]);
 
-  useEffect(() => {
+  const loadByodbCredentials = useCallback(() => {
     authFetch(`${API_BASE}api/byodb/credentials`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setByodbCredentials(data))
       .catch((err) => {
         console.error("[Connections] Failed to load BYODB credentials:", err);
         toast({
-          title: "Could not load saved warehouse credentials",
-          description: "Refresh the page or check your network connection.",
+          title: "Couldn't load your saved warehouse credentials",
+          description: "Check your connection and try again.",
           variant: "destructive",
+          action: { label: "Retry", onClick: () => loadByodbCredentials() },
         });
       });
   }, [toast]);
+
+  useEffect(() => {
+    loadByodbCredentials();
+  }, [loadByodbCredentials]);
 
   const stopPolling = () => {
     if (etlPollRef.current) { clearInterval(etlPollRef.current); etlPollRef.current = null; }
@@ -782,7 +787,12 @@ export default function Connections() {
     setGoogleAdsSyncMsg(`Synced ${json.rows} rows · ${json.days} days · ${formatUsdInDisplay(json.spend ?? 0)} spend`);
       toast({ title: "Google Ads Synced", description: `${json.rows} channel-day rows pulled from the API.` });
     } catch (e) {
-      toast({ title: "Sync Failed", description: String(e), variant: "destructive" });
+      toast({
+        title: "Couldn't sync Google Ads",
+        description: e instanceof Error ? e.message : "We hit a snag pulling your latest campaign data.",
+        variant: "destructive",
+        action: { label: "Retry sync", onClick: () => { void handleGoogleAdsSync(); } },
+      });
     } finally {
       setGoogleAdsSyncing(false);
     }
@@ -896,7 +906,12 @@ export default function Connections() {
       void pollEtlStatus();
       etlPollRef.current = setInterval(() => void pollEtlStatus(), 2_000);
     } catch {
-      toast({ title: "Sync Error", description: "Could not trigger sync. Please try again.", variant: "destructive" });
+      toast({
+        title: "Couldn't start the sync",
+        description: "Check your connection and try again.",
+        variant: "destructive",
+        action: { label: "Retry", onClick: () => { void handleForceSync(); } },
+      });
       setIsForceSyncing(false);
     }
   };

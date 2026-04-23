@@ -180,23 +180,27 @@ export default function Home() {
     if (!preAuth.goal) return;
     const alreadySet = activeWorkspace.primaryGoal && ["ecom", "leadgen", "hybrid"].includes(activeWorkspace.primaryGoal);
     if (alreadySet) { clearPreAuthSelections(); return; }
-    authFetch(`${API_BASE}api/workspaces/${activeWorkspace.id}/onboarding`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        primaryGoal: preAuth.goal,
-        enabledIntegrations: preAuth.platforms,
-      }),
-    }).then((r) => {
-      if (r.ok) clearPreAuthSelections();
-    }).catch((err) => {
-      console.error("[Home] Failed to apply pre-auth onboarding:", err);
-      toast({
-        title: "Could not save onboarding choices",
-        description: "Your platform selections were not applied. Try again from Settings.",
-        variant: "destructive",
-      });
-    });
+    const wsId = activeWorkspace.id;
+    const applyOnboarding = (): Promise<void> =>
+      authFetch(`${API_BASE}api/workspaces/${wsId}/onboarding`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          primaryGoal: preAuth.goal,
+          enabledIntegrations: preAuth.platforms,
+        }),
+      })
+        .then((r) => { if (r.ok) clearPreAuthSelections(); })
+        .catch((err) => {
+          console.error("[Home] Failed to apply pre-auth onboarding:", err);
+          toast({
+            title: "Couldn't save your onboarding choices",
+            description: "Your platform selections weren't applied. Try again now or from Settings.",
+            variant: "destructive",
+            action: { label: "Try again", onClick: () => { void applyOnboarding(); } },
+          });
+        });
+    void applyOnboarding();
   }, [activeWorkspace, toast]);
 
   // Global ⌘K / Ctrl+K listener for Command Palette

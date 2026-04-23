@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useCurrency } from "@/contexts/currency-context";
 import { authFetch } from "@/lib/auth-fetch";
+import { QueryErrorState } from "@/components/query-error-state";
 
 const BASE_URL = import.meta.env.BASE_URL ?? "/";
 const API_BASE = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
@@ -92,6 +93,9 @@ interface ForensicDataState {
   leaks: LeakEntry[];
   loading: boolean;
   error: string | null;
+  isError: boolean;
+  queryError: unknown;
+  refetch: () => void;
 }
 
 function useForensicData(dateRange: DateRange, searchTerm: string): ForensicDataState {
@@ -181,7 +185,14 @@ function useForensicData(dateRange: DateRange, searchTerm: string): ForensicData
     };
   }, [raw, searchTerm]);
 
-  return { ...filtered, loading: query.isLoading, error: query.isError ? "Failed to load forensic data" : null };
+  return {
+    ...filtered,
+    loading: query.isLoading,
+    error: query.isError ? "Failed to load forensic data" : null,
+    isError: query.isError,
+    queryError: query.error as unknown,
+    refetch: () => { void query.refetch(); },
+  };
 }
 
 interface LeadgenDataState {
@@ -190,6 +201,9 @@ interface LeadgenDataState {
   funnelLeaks: FunnelLeak[];
   loading: boolean;
   error: string | null;
+  isError: boolean;
+  queryError: unknown;
+  refetch: () => void;
 }
 
 function useLeadgenData(dateRange: DateRange, searchTerm: string): LeadgenDataState {
@@ -284,7 +298,14 @@ function useLeadgenData(dateRange: DateRange, searchTerm: string): LeadgenDataSt
     };
   }, [raw, searchTerm]);
 
-  return { ...filtered, loading: query.isLoading, error: query.isError ? "Failed to load lead data" : null };
+  return {
+    ...filtered,
+    loading: query.isLoading,
+    error: query.isError ? "Failed to load lead data" : null,
+    isError: query.isError,
+    queryError: query.error as unknown,
+    refetch: () => { void query.refetch(); },
+  };
 }
 
 function ForensicHeader({
@@ -762,12 +783,13 @@ export default function Forensic() {
         )}
 
         {!isLoading && loadError && (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3 text-center">
-              <AlertTriangle className="w-6 h-6 text-amber-500" />
-              <span className="text-xs font-medium text-on-surface-variant">{loadError}</span>
-              <span className="text-xs sm:text-[10px] text-on-surface-variant">Connect your data sources to populate this view</span>
-            </div>
+          <div className="flex-1 flex items-center justify-center px-4">
+            <QueryErrorState
+              title={showEcom ? "Couldn't load forensic data" : "Couldn't load lead data"}
+              error={showEcom ? ecomData.queryError : leadgenData.queryError}
+              onRetry={() => (showEcom ? ecomData.refetch() : leadgenData.refetch())}
+              className="max-w-md"
+            />
           </div>
         )}
 

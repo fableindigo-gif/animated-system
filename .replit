@@ -1,4 +1,10 @@
-modules = ["nodejs-24", "postgresql-16"]
+modules = ["nodejs-24", "python-3.11", "postgresql-16"]
+
+[[artifacts]]
+id = "artifacts/api-server"
+
+[[artifacts]]
+id = "artifacts/mockup-sandbox"
 
 [deployment]
 router = "application"
@@ -11,34 +17,43 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/agency-engine: Agency Logic Engine"
+
+[[workflows.workflow]]
+name = "artifacts/agency-engine: Agency Logic Engine"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/agency-engine && AGENCY_ENGINE_PORT=${PORT:-8090} python3 main.py"
+waitForPort = 8090
+
+[workflows.workflow.metadata]
+outputType = "console"
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
-integrations = ["github:1.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
 
-[[ports]]
-localPort = 8080
-externalPort = 8080
+[userenv]
 
-[[ports]]
-localPort = 8081
-externalPort = 80
-
-[[ports]]
-localPort = 8082
-externalPort = 3000
-
-[[ports]]
-localPort = 8083
-externalPort = 3002
-
-[[ports]]
-localPort = 25974
-externalPort = 3001
+[userenv.shared]
+GOOGLE_CLOUD_PROJECT = "rehab-ba713"
+GOOGLE_CLOUD_LOCATION = "us-central1"
+APP_DOMAIN = "omnianalytix.in"
+SITE_PASSWORD = "Omni@123#"
 
 [nix]
 channel = "stable-25_05"
+packages = ["glibcLocales", "libxcrypt"]

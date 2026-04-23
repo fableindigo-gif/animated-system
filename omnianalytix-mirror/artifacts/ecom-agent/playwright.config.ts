@@ -28,7 +28,16 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // In the Replit Nix sandbox the bundled Chromium binary needs
+        // a manual path (the libs Playwright ships against aren't on
+        // the dynamic linker search path). Outside Replit we let
+        // Playwright pick its own bundled browser as usual.
+        ...(process.env.REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE
+          ? { launchOptions: { executablePath: process.env.REPLIT_PLAYWRIGHT_CHROMIUM_EXECUTABLE } }
+          : {}),
+      },
     },
   ],
 });

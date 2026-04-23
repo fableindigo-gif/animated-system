@@ -285,16 +285,37 @@ function timeAgo(dateStr?: string | null): string | null {
  *   Amber    : connected, last sync 4–12 h  → "Aging"
  *   Crimson  : disconnected OR sync > 12 h  → "Disconnected" / "Sync Stale"
  */
-function HealthBadge({ connected, updatedAt }: { connected: boolean; updatedAt?: string | null }) {
+function HealthBadge({
+  connected,
+  updatedAt,
+  errorState = false,
+}: {
+  connected: boolean;
+  updatedAt?: string | null;
+  /** True when a connection record exists but is inactive/broken (e.g. expired
+   *  token). When false and `connected` is also false, we render the neutral
+   *  pre-connection pill instead of the red error pill. */
+  errorState?: boolean;
+}) {
   const syncAgeHours = updatedAt
     ? (Date.now() - new Date(updatedAt).getTime()) / 3_600_000
     : Infinity;
   const lastSynced = timeAgo(updatedAt);
 
   if (!connected) {
-    // Pre-connection state — neutral, not failure. Truly broken connections
-    // (token expired, etc.) surface separately via TokenExpiredState above
-    // the integration grid, so red styling here is misleading for new users.
+    if (errorState) {
+      // Real broken/expired connection — keep the red pill so per-card
+      // health stays consistent with the global TokenExpiredState banner.
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase"
+          style={{ background: "var(--color-status-critical-bg)", color: "var(--color-status-critical-fg)", borderColor: "var(--color-status-critical-border)" }}>
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--color-status-critical-dot)" }} />
+          Disconnected
+        </span>
+      );
+    }
+    // Pre-connection state — neutral, not failure. The user has not tried
+    // to connect this platform yet.
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase bg-surface text-on-surface-variant border-outline-variant/30">
         <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-on-surface-variant/40" />
@@ -1365,7 +1386,7 @@ export default function Connections() {
                       <p className="text-[10px] text-on-surface-variant mt-0.5">Ads · Merchant Center · Search Console · Sheets · Analytics · Calendar · Drive · Docs</p>
                     </div>
                   </div>
-                  <HealthBadge connected={isGoogleConnected} updatedAt={(googleConn as any)?.updatedAt} />
+                  <HealthBadge connected={isGoogleConnected} updatedAt={(googleConn as any)?.updatedAt} errorState={!!googleConn && (googleConn as any)?.isActive === false} />
                 </div>
                 <div className={cn("grid gap-2.5 mb-5", "grid-cols-3")}>
                   {googleSubServices.map((svc) => {
@@ -1535,7 +1556,7 @@ export default function Connections() {
                       <p className="text-[10px] text-on-surface-variant mt-0.5">Facebook · Instagram · Audience Network</p>
                     </div>
                   </div>
-                  <HealthBadge connected={isMetaConnected} updatedAt={(metaConn as any)?.updatedAt} />
+                  <HealthBadge connected={isMetaConnected} updatedAt={(metaConn as any)?.updatedAt} errorState={!!metaConn && (metaConn as any)?.isActive === false} />
                 </div>
                 <p className="text-xs text-on-surface-variant mb-4">Connect your Facebook and Instagram ad accounts to track ROI and ROAS in real-time.</p>
                 <button
@@ -1566,7 +1587,7 @@ export default function Connections() {
                       <p className="text-[10px] text-on-surface-variant mt-0.5">Microsoft Advertising · Search · Audience Network</p>
                     </div>
                   </div>
-                  <HealthBadge connected={bingConnected} updatedAt={(bingConn as any)?.updatedAt} />
+                  <HealthBadge connected={bingConnected} updatedAt={(bingConn as any)?.updatedAt} errorState={!!bingConn && (bingConn as any)?.isActive === false} />
                 </div>
                 {bingConnected ? (
                   <div className="flex gap-2">
@@ -1724,7 +1745,7 @@ export default function Connections() {
                       <p className="text-[10px] text-on-surface-variant mt-0.5">Orders · Products · Revenue</p>
                     </div>
                   </div>
-                  <HealthBadge connected={!!isShopifyConnected} updatedAt={(shopifyConn as any)?.updatedAt} />
+                  <HealthBadge connected={!!isShopifyConnected} updatedAt={(shopifyConn as any)?.updatedAt} errorState={!!shopifyConn && (shopifyConn as any)?.isActive === false} />
                 </div>
                 {isShopifyConnected ? (
                   <>
@@ -1782,7 +1803,7 @@ export default function Connections() {
                       <p className="text-[10px] text-on-surface-variant mt-0.5">REST API · Products · Orders</p>
                     </div>
                   </div>
-                  <HealthBadge connected={isWooConnected} updatedAt={(wooConn as any)?.updatedAt} />
+                  <HealthBadge connected={isWooConnected} updatedAt={(wooConn as any)?.updatedAt} errorState={!!wooConn && (wooConn as any)?.isActive === false} />
                 </div>
                 <p className="text-xs text-on-surface-variant mb-4">Connect your WooCommerce store to sync products, orders, and customer data via REST API.</p>
                 <div className="flex gap-2">
@@ -1805,7 +1826,7 @@ export default function Connections() {
             )}
 
             {(showAllSections || isSectionVisible("crm", goal)) && (
-              <div className="md:col-span-2 flex flex-col gap-4">
+              <div data-focus-platform="crm" className="md:col-span-2 flex flex-col gap-4 data-[focused=true]:ring-4 data-[focused=true]:ring-[#2563EB]/40 data-[focused=true]:ring-offset-2 data-[focused=true]:rounded-2xl transition-all">
                 <section className="bg-white border ghost-border rounded-2xl p-6 shadow-sm">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 rounded-2xl bg-surface border ghost-border flex items-center justify-center">

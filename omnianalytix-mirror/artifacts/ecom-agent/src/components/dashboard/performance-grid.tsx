@@ -1241,7 +1241,10 @@ export function PerformanceGrid({ onAnalyze, compact = false }: PerformanceGridP
                 <WindowEmptyBanner latestSyncAt={latestAdsSyncAt} />
               </div>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
+              <div className={cn(
+                "flex-1 flex flex-col items-center justify-center gap-4",
+                compact ? "px-3 py-6" : "p-8",
+              )}>
                 <div className="w-10 h-10 rounded-2xl bg-surface-container-low flex items-center justify-center">
                   <WifiOff className="w-5 h-5 text-on-surface-variant" />
                 </div>

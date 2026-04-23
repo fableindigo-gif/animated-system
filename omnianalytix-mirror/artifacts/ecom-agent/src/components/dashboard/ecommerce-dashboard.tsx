@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { RefreshCw, TrendingUp, TrendingDown, Minus, Zap, ExternalLink } from "lucide-react";
 import { MoneyTile } from "@/components/ui/money-tile";
 import { motion } from "framer-motion";

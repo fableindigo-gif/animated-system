@@ -899,7 +899,7 @@ export default function Connections() {
   const shopifyDomain = (shopifyConn as any)?.credentials?.shop ?? (shopifyConn as any)?.displayName ?? "your-store.myshopify.com";
 
   const googleConn = connections?.find((c) => c.platform === CreateConnectionBodyPlatform.google_ads);
-  const isGoogleConnected = !!googleConn;
+  const isGoogleConnected = !!googleConn && (googleConn as any)?.isActive !== false;
 
   const metaConn = connections?.find((c) => c.platform === CreateConnectionBodyPlatform.meta);
   const isMetaConnected = !!metaConn?.isActive;

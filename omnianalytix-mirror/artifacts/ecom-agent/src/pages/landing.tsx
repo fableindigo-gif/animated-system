@@ -456,8 +456,8 @@ export default function LandingPage({
                 transition={{ duration: 0.65, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
                 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tighter leading-[1.08] mb-5"
               >
-                Enterprise AI Analytics,{" "}
-                <span className="text-[#2563EB]">Secured for Agencies.</span>
+                Catch the leaks.{" "}
+                <span className="text-[#2563EB]">Defend your margin.</span>
               </motion.h1>
 
               <motion.p
@@ -466,8 +466,7 @@ export default function LandingPage({
                 transition={{ duration: 0.5, delay: 0.28 }}
                 className="text-base sm:text-lg text-[#434655] max-w-lg mb-8 leading-relaxed font-medium"
               >
-                OmniAnalytix combines Gemini 2.5 Pro intelligence with a human-in-the-loop approval system.
-                Audit funnels, triage anomalies, and resolve leaks across Shopify, Google Ads &amp; your CRM — all from one command center.
+                Enterprise AI analytics, secured for agencies. OmniAnalytix surfaces budget overruns, pixel drops, and out-of-stock spend across Shopify, Google Ads &amp; your CRM — then helps you fix them in one click, with a human in the loop.
               </motion.p>
 
               <motion.form
@@ -543,6 +542,15 @@ export default function LandingPage({
                 <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">LTV Lift</p>
                 <p className="text-2xl font-extrabold text-[#2563EB] tracking-tight">+24.8%</p>
               </motion.div>
+
+              <motion.p
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 1.0 }}
+                className="mt-8 text-center text-[12px] text-muted-foreground font-medium leading-relaxed max-w-md mx-auto"
+              >
+                Live anomaly detection on your blended marketing data — POAS (profit on ad spend), LTV, margin — across every channel.
+              </motion.p>
             </div>
           </div>
         </section>
@@ -1209,6 +1217,60 @@ export default function LandingPage({
                 </div>
               </div>
             </FadeIn>
+          </div>
+        </section>
+
+        {/* ═══ WHAT HAPPENS AFTER YOU REQUEST A DEMO ═════════════════════════ */}
+        <section className="py-20 px-6 bg-white border-t border-[#e8e8ed]/60">
+          <div className="max-w-5xl mx-auto">
+            <FadeIn>
+              <div className="text-center mb-12">
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2563EB]/8 text-[#2563EB] text-[11px] font-bold uppercase tracking-widest mb-5 border border-[#2563EB]/12">
+                  What happens next
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tighter text-[#1a1c1f] mb-3">
+                  After you request a demo
+                </h2>
+                <p className="text-[#434655] text-base max-w-xl mx-auto leading-relaxed">
+                  No surprises, no auto-billed trial. Just a short conversation and a guided walkthrough on data that looks like yours.
+                </p>
+              </div>
+            </FadeIn>
+            <div className="grid md:grid-cols-3 gap-6">
+              {[
+                {
+                  step: "01",
+                  title: "You submit the form",
+                  desc: "Takes about 30 seconds. No credit card. We only ask for what we need to route you to the right person.",
+                  icon: "send",
+                },
+                {
+                  step: "02",
+                  title: "We reach out within 2 business days",
+                  desc: "A short call to understand your stack, your channels, and what \"good\" looks like for your team.",
+                  icon: "call",
+                },
+                {
+                  step: "03",
+                  title: "You see OmniAnalytix on your data",
+                  desc: "A guided 30-minute demo using sample data that mirrors your channels — so you can judge the fit, not the polish.",
+                  icon: "insights",
+                },
+              ].map((item, i) => (
+                <FadeIn key={item.step} delay={i * 80}>
+                  <div className="h-full bg-[#f7f9fb] rounded-3xl border border-[#e8e8ed] p-7 flex flex-col">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-[#2563EB]/10 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-[#2563EB] text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>{item.icon}</span>
+                      </div>
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground font-mono">{item.step}</span>
+                    </div>
+                    <h3 className="text-base font-bold text-[#1a1c1f] mb-2 tracking-tight">{item.title}</h3>
+                    <p className="text-sm text-[#434655] leading-relaxed">{item.desc}</p>
+                  </div>
+                </FadeIn>
+              ))}
+            </div>
           </div>
         </section>
 

@@ -56,9 +56,15 @@ const server = http.createServer((req, res) => {
   const contentType = MIME[ext] || 'application/octet-stream';
 
   const isImmutable = urlPath.startsWith('/assets/');
-  const cacheControl = isImmutable
-    ? 'public, max-age=31536000, immutable'
-    : 'no-cache';
+  const isHtml = ext === '.html';
+  let cacheControl;
+  if (isImmutable) {
+    cacheControl = 'public, max-age=31536000, immutable';
+  } else if (isHtml) {
+    cacheControl = 'no-cache, must-revalidate';
+  } else {
+    cacheControl = 'no-cache';
+  }
 
   try {
     const content = fs.readFileSync(filePath);

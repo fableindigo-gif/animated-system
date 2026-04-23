@@ -93,11 +93,11 @@ const GOALS: Array<{
     id: "leadgen",
     title: "Lead Gen & Pipeline",
     subtitle: "B2B · Forms · Calls",
-    description: "Sync CRM data, track CPL, and pause ads targeting junk lead segments.",
+    description: "Sync CRM data, track cost per lead, and pause ads chasing junk leads.",
     examples: "B2B SaaS, agencies, professional services",
     emoji: "🎯",
     icon: <Users className="w-6 h-6" />,
-    checkpoints:  ["CRM pipeline sync", "CPL arbitrage tracking", "Offline conversion upload"],
+    checkpoints:  ["CRM pipeline sync", "Cost-per-lead trend tracking", "Offline conversion upload"],
   },
   {
     id: "hybrid",

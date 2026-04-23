@@ -8,11 +8,21 @@ import type {
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 5000
 
+// Inline shorthand for action buttons. The Toaster renders this as a
+// <ToastAction> with the given label and click handler so call sites can write
+// `toast({ ..., action: { label: "Retry", onClick: doRetry } })` instead of
+// hand-rolling a React element.
+export type ToastActionInput = {
+  label: string
+  onClick: () => void
+  altText?: string
+}
+
 type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
-  action?: ToastActionElement
+  action?: ToastActionElement | ToastActionInput
 }
 
 const actionTypes = {

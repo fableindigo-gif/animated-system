@@ -73,10 +73,10 @@ const COMMANDS: PaletteCommand[] = [
   },
   {
     id: "god-mode-sweep", category: "diagnostics", godMode: true, featured: true,
-    label: "Run Master Diagnostic Sweep",
-    description: "Full-ecosystem audit across all connected platforms",
+    label: "Run full diagnostic across all platforms",
+    description: "Audit every connected channel and rank issues by margin impact",
     prompt: "Run the master diagnostic sweep across all connected platforms right now. Execute run_master_diagnostic_sweep and present the full EXECUTIVE SYSTEM DIAGNOSTIC with 🔴 CRITICAL, 🟡 WARNINGS, and 🟢 HEALTHY sections ranked by margin impact. Be terse and decisive.",
-    tag: "God Mode",
+    tag: "Full sweep",
   },
   {
     id: "poas-metrics", category: "diagnostics", featured: true,
@@ -116,8 +116,8 @@ const COMMANDS: PaletteCommand[] = [
 
   {
     id: "weekly-pdf", category: "reporting", featured: true,
-    label: "Generate Weekly PDF Report",
-    description: "Download the Client Whisperer PDF narrative",
+    label: "Generate weekly client report (PDF)",
+    description: "AI-written recap with KPIs, wins, and recommended next steps",
     prompt: "Generate and download the weekly PDF performance report with narrative summary, platform breakdowns, and recommended actions.",
     tag: "Report",
   },
@@ -173,8 +173,8 @@ const COMMANDS: PaletteCommand[] = [
   },
   {
     id: "sge-optimize", category: "optimization",
-    label: "Optimize SGE Metadata",
-    description: "Rewrite product description for AI Shopping Graph discovery",
+    label: "Suggest a richer product description",
+    description: "Rewrite product copy so Google's AI shopping results pick it up",
     prompt: "Optimize the product description for SGE (Search Generative Experience) and AI Shopping Graph. Rewrite with entity-dense semantic HTML and propose structured metafields.",
     tag: "SEO",
   },

@@ -246,7 +246,7 @@ const PERSONA_TABS = [
     title: "Stop losing margin to manual work",
     points: [
       "Unified command center replaces 8+ MarTech tools",
-      "Dual-authorization workflows prevent costly mistakes",
+      "Two-person approval keeps sensitive changes safe",
       "White-label client portals auto-generated weekly",
       "Proactive budget pacing with overspend alerts",
     ],

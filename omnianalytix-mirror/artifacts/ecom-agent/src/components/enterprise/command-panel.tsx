@@ -389,13 +389,23 @@ function ConversationsList({
         const data = await resp.json().catch(() => ({})) as { deleted?: number };
         queryClient.invalidateQueries({ queryKey: getListGeminiConversationsQueryKey() });
         onSelectConv(null);
-        toast({ title: "Execution Logs Cleared", description: `${data.deleted ?? "All"} log${(data.deleted ?? 0) !== 1 ? "s" : ""} deleted successfully.` });
+        toast({ title: "Logs cleared", description: `${data.deleted ?? "All"} log${(data.deleted ?? 0) !== 1 ? "s" : ""} removed.` });
       } else {
         const err = await resp.json().catch(() => ({})) as { error?: string };
-        toast({ title: "Delete Failed", description: err.error ?? "Could not clear logs. Please try again.", variant: "destructive" });
+        toast({
+          title: "Couldn't clear your logs",
+          description: err.error ?? "Something went wrong on our end. Give it another try.",
+          variant: "destructive",
+          action: { label: "Try again", onClick: () => { void handleDeleteAll(); } },
+        });
       }
     } catch {
-      toast({ title: "Network Error", description: "Could not reach the server. Please try again.", variant: "destructive" });
+      toast({
+        title: "Couldn't reach the server",
+        description: "Check your connection and try again.",
+        variant: "destructive",
+        action: { label: "Retry", onClick: () => { void handleDeleteAll(); } },
+      });
     } finally {
       setIsDeletingAll(false);
       setShowDeleteAll(false);

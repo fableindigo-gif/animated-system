@@ -455,12 +455,39 @@ function App() {
   // workspace settings pages.
   useEffect(() => {
     if (needsOnboarding && hasToken) {
-      handleOnboardingComplete("ecom", []);
+      // Preserve any pre-auth goal/platform selections the user already made
+      // (e.g. via the landing-page goal picker) so the post-signup welcome
+      // overlay and connections deep-link target the correct integration.
+      const existingGoal = localStorage.getItem("omni_preauth_goal");
+      const goal = existingGoal === "leadgen" || existingGoal === "hybrid" || existingGoal === "ecom"
+        ? existingGoal
+        : "ecom";
+      let platforms: string[] = [];
+      try {
+        const raw = localStorage.getItem("omni_preauth_platforms");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) platforms = parsed.filter((p): p is string => typeof p === "string");
+        }
+      } catch { /* ignore malformed cache */ }
+      handleOnboardingComplete(goal, platforms);
     }
   }, [needsOnboarding, hasToken, handleOnboardingComplete]);
   useEffect(() => {
     if (!preAuthDone && hasToken && !hasSsoCallback) {
-      markPreAuthDone("ecom", []);
+      const existingGoal = localStorage.getItem("omni_preauth_goal");
+      const goal = existingGoal === "leadgen" || existingGoal === "hybrid" || existingGoal === "ecom"
+        ? existingGoal
+        : "ecom";
+      let platforms: string[] = [];
+      try {
+        const raw = localStorage.getItem("omni_preauth_platforms");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) platforms = parsed.filter((p): p is string => typeof p === "string");
+        }
+      } catch { /* ignore malformed cache */ }
+      markPreAuthDone(goal, platforms);
     }
   }, [preAuthDone, hasToken, hasSsoCallback, markPreAuthDone]);
 

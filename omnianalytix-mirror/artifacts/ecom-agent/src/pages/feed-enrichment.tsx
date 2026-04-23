@@ -382,13 +382,35 @@ export default function FeedEnrichmentPage() {
   const FEEDGEN_PAGE_SIZE = 25;
   const [feedgenStats, setFeedgenStats] = useState<FeedgenStatsResponse | null>(null);
 
+  // Guard against stale FeedGen responses overwriting fresher ones. Both the
+  // rewrites list (`loadFeedgen`) and the stats panel (`loadFeedgenStats`)
+  // are invoked from multiple concurrent paths (filter change, page change,
+  // post-run, post-approve), so without cancellation an older request that
+  // lands after a newer one would flicker the panel back to outdated data.
+  const loadFeedgenReqIdRef    = useRef(0);
+  const loadFeedgenAbortRef    = useRef<AbortController | null>(null);
+  const loadFeedgenStatsReqIdRef = useRef(0);
+  const loadFeedgenStatsAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => {
+    loadFeedgenAbortRef.current?.abort();
+    loadFeedgenStatsAbortRef.current?.abort();
+  }, []);
+
   const loadFeedgenStats = useCallback(async () => {
+    loadFeedgenStatsAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadFeedgenStatsAbortRef.current = controller;
+    const reqId = ++loadFeedgenStatsReqIdRef.current;
+    const isStale = () => reqId !== loadFeedgenStatsReqIdRef.current;
     try {
       const res = await authFetch(
         `${API_BASE}api/feed-enrichment/feedgen/rewrites/stats?days=30`,
+        { signal: controller.signal },
       );
+      if (isStale()) return;
       if (!res.ok) return;
       const data = await res.json() as FeedgenStatsResponse;
+      if (isStale()) return;
       setFeedgenStats(data);
     } catch {
       // Stats are best-effort — don't surface an error if they fail to load.
@@ -396,6 +418,12 @@ export default function FeedEnrichmentPage() {
   }, []);
 
   const loadFeedgen = useCallback(async (status: string, page: number) => {
+    loadFeedgenAbortRef.current?.abort();
+    const controller = new AbortController();
+    loadFeedgenAbortRef.current = controller;
+    const reqId = ++loadFeedgenReqIdRef.current;
+    const isStale = () => reqId !== loadFeedgenReqIdRef.current;
+
     setFeedgenLoading(true);
     setFeedgenError(null);
     try {
@@ -406,10 +434,13 @@ export default function FeedEnrichmentPage() {
       });
       const res = await authFetch(
         `${API_BASE}api/feed-enrichment/feedgen/rewrites?${params.toString()}`,
+        { signal: controller.signal },
       );
+      if (isStale()) return;
       const data = await res.json() as {
         rewrites?: FeedgenRewriteRow[]; total?: number; error?: string;
       };
+      if (isStale()) return;
       if (!res.ok) {
         setFeedgenError(data.error ?? "Failed to load rewrites");
         return;
@@ -417,10 +448,12 @@ export default function FeedEnrichmentPage() {
       setFeedgenRows(data.rewrites ?? []);
       setFeedgenTotal(typeof data.total === "number" ? data.total : (data.rewrites?.length ?? 0));
       setFeedgenSelected(new Set());
-    } catch {
+    } catch (err) {
+      if ((err as { name?: string } | null)?.name === "AbortError") return;
+      if (isStale()) return;
       setFeedgenError("Network error while loading rewrites");
     } finally {
-      setFeedgenLoading(false);
+      if (!isStale()) setFeedgenLoading(false);
     }
   }, []);
 
@@ -598,18 +631,43 @@ export default function FeedEnrichmentPage() {
   const [wbRunProgress, setWbRunProgress] = useState<{ total: number; done: number } | null>(null);
   const wbProgressPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Guard against stale write-back responses overwriting fresher ones.
+  // `fetchWritebacks` is invoked from many concurrent paths (filter change,
+  // single-task retry, bulk retry-all); without cancellation an older request
+  // that lands after a newer one would flicker the panel back to outdated rows.
+  const fetchWritebacksReqIdRef = useRef(0);
+  const fetchWritebacksAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => {
+    fetchWritebacksAbortRef.current?.abort();
+  }, []);
+
   const fetchWritebacks = useCallback(async () => {
+    fetchWritebacksAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchWritebacksAbortRef.current = controller;
+    const reqId = ++fetchWritebacksReqIdRef.current;
+    const isStale = () => reqId !== fetchWritebacksReqIdRef.current;
+
     setWbLoading(true);
     setWbError(null);
     try {
       const qs  = wbStatusFilter !== "all" ? `?status=${wbStatusFilter}` : "";
-      const res = await authFetch(`${API_BASE}api/feed-enrichment/writeback${qs}`);
+      const res = await authFetch(
+        `${API_BASE}api/feed-enrichment/writeback${qs}`,
+        { signal: controller.signal },
+      );
+      if (isStale()) return;
       const data = await res.json() as { tasks?: WritebackTask[]; maxAttempts?: number; error?: string };
+      if (isStale()) return;
       if (!res.ok) { setWbError(data.error ?? "Failed to load write-back tasks."); return; }
       setWbTasks(data.tasks ?? []);
       if (typeof data.maxAttempts === "number") setWbMaxAttempts(data.maxAttempts);
-    } catch { setWbError("Network error loading write-back tasks."); }
-    finally { setWbLoading(false); }
+    } catch (err) {
+      if ((err as { name?: string } | null)?.name === "AbortError") return;
+      if (isStale()) return;
+      setWbError("Network error loading write-back tasks.");
+    }
+    finally { if (!isStale()) setWbLoading(false); }
   }, [wbStatusFilter]);
 
   // Starts a polling loop that refreshes the writeback list every 1.5 s and

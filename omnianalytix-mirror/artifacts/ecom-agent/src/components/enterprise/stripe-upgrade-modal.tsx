@@ -120,24 +120,37 @@ export function StripeUpgradeModal({
 
         <div className="p-5 space-y-5 overflow-y-auto flex-1">
           <div className="text-center">
-            {dollarImpact != null && dollarImpact > 0 ? (
+            {dollarImpact != null && dollarImpact !== 0 ? (
               <>
                 <p className="text-lg font-bold text-on-surface font-[system-ui]" data-testid="paywall-value-headline">
-                  You're about to {dollarImpact >= 0 ? "save" : "recover"}{" "}
-                  <span className="text-emerald-600">
-                    {formatUsd(Math.abs(dollarImpact))}/{impactCadence === "month" ? "mo" : "day"}
-                  </span>
-                  .
+                  {dollarImpact > 0 ? (
+                    <>
+                      You're about to <span className="text-emerald-600">save {formatUsd(Math.abs(dollarImpact))}/{impactCadence === "month" ? "mo" : "day"}</span>.
+                    </>
+                  ) : (
+                    <>
+                      You're about to <span className="text-amber-600">spend {formatUsd(Math.abs(dollarImpact))}/{impactCadence === "month" ? "mo" : "day"} more</span>.
+                    </>
+                  )}
                 </p>
-                <p className="text-xs text-on-surface-variant mt-2 font-mono">
+                <p className="text-xs text-on-surface-variant mt-2 font-mono" data-testid="paywall-payback">
                   Pro plans start at ${PRO_PRICE_USD_PER_MONTH}/mo.
                   {(() => {
-                    const monthlyImpact = impactCadence === "day" ? Math.abs(dollarImpact) * 30 : Math.abs(dollarImpact);
-                    if (monthlyImpact >= PRO_PRICE_USD_PER_MONTH * 2) {
-                      const days = Math.max(1, Math.ceil(PRO_PRICE_USD_PER_MONTH / (impactCadence === "day" ? Math.abs(dollarImpact) : Math.abs(dollarImpact) / 30)));
-                      return ` Pays for itself in ~${days} day${days === 1 ? "" : "s"}.`;
+                    // Always show a recovery framing when dollar impact is present.
+                    // For positive (savings) impact: how many days to pay back the plan.
+                    // For negative (spend increase) impact: stay neutral — just remind
+                    //   the user the plan is required to act.
+                    if (dollarImpact <= 0) {
+                      return " Required to execute automated platform fixes.";
                     }
-                    return "";
+                    const dailyImpact = impactCadence === "day" ? dollarImpact : dollarImpact / 30;
+                    if (dailyImpact <= 0) return "";
+                    const daysRaw = PRO_PRICE_USD_PER_MONTH / dailyImpact;
+                    if (daysRaw < 1) {
+                      return " Pays for itself in under a day.";
+                    }
+                    const days = Math.ceil(daysRaw);
+                    return ` Pays for itself in ~${days} day${days === 1 ? "" : "s"}.`;
                   })()}
                 </p>
                 {actionLabel && (

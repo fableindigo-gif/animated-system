@@ -83,37 +83,56 @@ function generateSessionTitle(content: string): string {
 
 // ─── Dollar-impact extractor ──────────────────────────────────────────────────
 // Inspects an approval card's diff rows and toolArgs for any monetary delta we
-// can show in the paywall headline. Returns the absolute dollar value of the
-// largest budget/spend/cost/savings/recovery row, or null if none found.
+// can show in the paywall headline. Returns the SIGNED dollar value of the
+// largest matching row so the modal can frame the action as "save" (spend ↓
+// or revenue/savings ↑) vs "spend more" (spend ↑). Returns null if nothing
+// useful is found.
+//
+// Sign convention: positive = good outcome for the user (savings, revenue,
+// recovery, profit OR a reduction in spend/cost/budget). Negative = the
+// action increases spend/cost.
 
 function extractDollarImpact(card: ApprovalCardData | undefined): number | null {
   if (!card) return null;
 
-  // 1. toolArgs may carry projected/recovery numbers directly.
+  // 1. toolArgs may carry projected/recovery numbers directly. These are
+  //    always framed as positive savings/recovery by upstream tools.
   const argKeys = ["projectedRecovery", "projectedSavings", "projectedDailySavings", "dailySavings", "savings", "dollarImpact"];
   for (const k of argKeys) {
     const v = card.toolArgs?.[k];
     if (v != null) {
       const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.-]/g, ""));
-      if (!isNaN(n) && Math.abs(n) > 0) return Math.abs(n);
+      if (!isNaN(n) && n !== 0) return Math.abs(n); // upstream is always positive savings
     }
   }
 
-  // 2. Look at displayDiff for a budget/spend/cost/savings row with a delta.
-  let largest = 0;
+  // 2. Look at displayDiff. For "good" labels (savings/revenue/recovery/profit)
+  //    a positive delta is good. For "cost" labels (spend/cost/budget) a
+  //    decrease is good (so flip the sign). We pick the row with the largest
+  //    absolute delta and return its signed value.
+  let bestAbs = 0;
+  let bestSigned = 0;
   for (const row of card.displayDiff ?? []) {
-    if (!/budget|spend|cost|savings|revenue|recovery|profit/i.test(row.label)) continue;
+    const isCostLabel = /budget|spend|cost/i.test(row.label);
+    const isGoodLabel = /savings|revenue|recovery|profit/i.test(row.label);
+    if (!isCostLabel && !isGoodLabel) continue;
+
     const from = parseFloat((row.from ?? "").replace(/[^0-9.-]/g, ""));
     const to   = parseFloat((row.to ?? "").replace(/[^0-9.-]/g, ""));
+    let signed: number | null = null;
     if (!isNaN(from) && !isNaN(to)) {
-      const delta = Math.abs(to - from);
-      if (delta > largest) largest = delta;
-    } else if (!isNaN(to)) {
-      const v = Math.abs(to);
-      if (v > largest) largest = v;
+      const delta = to - from;
+      // Cost going down is good (positive). Revenue going up is good (positive).
+      signed = isCostLabel ? -delta : delta;
+    } else if (!isNaN(to) && isGoodLabel) {
+      signed = Math.abs(to);
+    }
+    if (signed != null && Math.abs(signed) > bestAbs) {
+      bestAbs = Math.abs(signed);
+      bestSigned = signed;
     }
   }
-  return largest > 0 ? largest : null;
+  return bestAbs > 0 ? bestSigned : null;
 }
 
 // ─── Rich Card Types ───────────────────────────────────────────────────────────

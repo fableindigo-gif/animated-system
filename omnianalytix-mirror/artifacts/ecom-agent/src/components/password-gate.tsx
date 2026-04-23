@@ -28,16 +28,25 @@ async function verifyStoredToken(): Promise<{
   }
 }
 
-function getCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+// Exchange the short-lived httpOnly `omni_sso_token` cookie set by the SSO
+// callback for the actual JWT (returned in the response body). Doing this
+// server-side means the cookie can be `httpOnly: true`, so the JWT is never
+// readable from JavaScript on the page during the 60s handoff window.
+async function exchangeSsoCookie(): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}api/auth/gate/sso/exchange`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { token?: string };
+    return data.token ?? null;
+  } catch {
+    return null;
+  }
 }
 
-function clearCookie(name: string) {
-  document.cookie = `${name}=; path=/; max-age=0`;
-}
-
-function consumeSsoParams(): string | null {
+async function consumeSsoParams(): Promise<string | null> {
   const params = new URLSearchParams(window.location.search);
   const ssoComplete = params.get("sso_complete");
   const ssoName = params.get("sso_name");
@@ -54,10 +63,9 @@ function consumeSsoParams(): string | null {
   }
 
   if (ssoComplete) {
-    const cookieToken = getCookie("omni_sso_token");
+    const cookieToken = await exchangeSsoCookie();
     if (cookieToken) {
       localStorage.setItem(TOKEN_KEY, cookieToken);
-      clearCookie("omni_sso_token");
     }
 
     if (ssoName) localStorage.setItem("omni_user_name", ssoName);
@@ -82,14 +90,18 @@ export function AuthGate({ children, onUnauthenticated }: { children: React.Reac
   const [status, setStatus] = useState<"loading" | "unauthenticated" | "authenticated">("loading");
 
   useEffect(() => {
-    const ssoToken = consumeSsoParams();
+    let cancelled = false;
+    (async () => {
+      const ssoToken = await consumeSsoParams();
+      if (cancelled) return;
 
-    if (ssoToken) {
-      setStatus("authenticated");
-      return;
-    }
+      if (ssoToken) {
+        setStatus("authenticated");
+        return;
+      }
 
-    verifyStoredToken().then((result) => {
+      const result = await verifyStoredToken();
+      if (cancelled) return;
       if (result.valid) {
         if (result.name) localStorage.setItem("omni_user_name", result.name);
         if (result.email) localStorage.setItem("omni_user_email", result.email);
@@ -101,7 +113,8 @@ export function AuthGate({ children, onUnauthenticated }: { children: React.Reac
         setStatus("unauthenticated");
         onUnauthenticated?.();
       }
-    });
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   if (status === "loading") {

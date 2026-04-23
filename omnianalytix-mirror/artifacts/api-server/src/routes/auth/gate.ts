@@ -406,8 +406,11 @@ router.get("/sso/callback", async (req, res) => {
       email: userInfo.email,
     });
 
+    // httpOnly so the JWT is never readable from JavaScript on the page.
+    // The frontend exchanges this cookie for the token via POST /sso/exchange
+    // (handler below) on the next page load, then clears it server-side.
     res.cookie("omni_sso_token", token, {
-      httpOnly: false,
+      httpOnly: true,
       secure: true,
       sameSite: "lax",
       maxAge: 60 * 1000,
@@ -473,8 +476,11 @@ router.post("/sso/confirm", async (req, res) => {
       email: pending.email,
     });
 
+    // httpOnly: the response body already returns the token to the caller
+    // for this confirm endpoint (see res.json below), so the cookie is just
+    // a belt-and-suspenders for the immediate post-confirm redirect.
     res.cookie("omni_sso_token", token, {
-      httpOnly: false,
+      httpOnly: true,
       secure: true,
       sameSite: "lax",
       maxAge: 60 * 1000,
@@ -495,6 +501,35 @@ router.post("/sso/confirm", async (req, res) => {
     logger.error({ err }, "SSO: Failed to confirm new user");
     res.status(500).json({ error: "Failed to create account" });
   }
+});
+
+// Exchange the short-lived httpOnly omni_sso_token cookie for the JWT in the
+// response body. The frontend calls this once on `?sso_complete=1` to receive
+// the token and persist it in localStorage, then we clear the cookie. Keeping
+// the cookie httpOnly means a malicious script on the page can never read the
+// JWT directly during the 60s handoff window.
+router.post("/sso/exchange", (req, res) => {
+  const cookieToken = (req as unknown as { cookies?: Record<string, string> }).cookies?.omni_sso_token;
+  if (!cookieToken) {
+    res.status(401).json({ error: "no_sso_cookie" });
+    return;
+  }
+  const decoded = verifyGateJwt(cookieToken);
+  if (!decoded) {
+    res.clearCookie("omni_sso_token", { path: "/" });
+    res.status(401).json({ error: "invalid_or_expired" });
+    return;
+  }
+  // Single-use: clear immediately. Subsequent requests use the bearer token.
+  res.clearCookie("omni_sso_token", { path: "/" });
+  res.json({
+    token: cookieToken,
+    memberId: decoded.memberId,
+    organizationId: decoded.organizationId,
+    role: decoded.role,
+    name: decoded.name,
+    email: decoded.email,
+  });
 });
 
 router.get("/sso/config", (_req, res) => {

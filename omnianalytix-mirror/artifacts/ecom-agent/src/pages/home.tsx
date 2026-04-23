@@ -30,6 +30,9 @@ import { ErrorBoundary } from "@/components/layout/error-boundary";
 import { cn } from "@/lib/utils";
 import { PortfolioSwitcher } from "@/components/enterprise/portfolio-switcher";
 import { GlobalStatusBar } from "@/components/enterprise/global-status-bar";
+import { SetTargetsWaitForm } from "@/components/home/set-targets-wait-form";
+import { FirstInsightHero } from "@/components/home/first-insight-hero";
+import { useDashboardStore } from "@/store/dashboardStore";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useCurrency } from "@/contexts/currency-context";
 import { SKUGrid } from "@/components/enterprise/sku-grid";
@@ -103,6 +106,12 @@ export default function Home() {
   // Approval cards for this session: snapshotId → card data
   const [approvalCards, setApprovalCards] = useState<Map<number, ApprovalCardData>>(new Map());
   const [approvalOrder, setApprovalOrder] = useState<number[]>([]);
+
+  // Subscribe to dashboard sync state so the wait-form re-renders as the
+  // backend transitions from HISTORICAL_BACKFILL → SYNCING → OPERATIONAL.
+  const dashboardSyncState = useDashboardStore((s) => s.syncState);
+  const showSetTargetsForm =
+    dashboardSyncState === "HISTORICAL_BACKFILL" || dashboardSyncState === "SYNCING";
 
   const [showWelcome, setShowWelcome] = useState(() => {
     const role = (localStorage.getItem("omni_user_role") ?? "").toLowerCase();
@@ -659,6 +668,19 @@ export default function Home() {
 
       {/* ── Global System Status Bar ── */}
       <GlobalStatusBar />
+
+      {/* ── First-sync productivity banner: lets the user configure targets
+          (COGS %, target ROAS) while the warehouse hydrates so KPIs are
+          meaningful the moment the dashboard appears. Self-hides when both
+          targets are configured, and is naturally invisible after the sync
+          completes because it only renders during HISTORICAL_BACKFILL /
+          SYNCING states. */}
+      {showSetTargetsForm && <SetTargetsWaitForm />}
+
+      {/* ── First-insight celebration hero: surfaces the largest open margin
+          leak as the user-visible payoff of "first value". Dismissible per
+          workspace via localStorage. */}
+      <FirstInsightHero onOpenDashboard={() => { setViewMode("dashboard"); setMobilePane("radar"); }} />
 
       {/* ── Workspace Switch Toast ── */}
       {justSwitched && activeWorkspace && (

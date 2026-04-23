@@ -9,6 +9,7 @@ import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { EtlSyncBanner, type EtlStatus } from "@/components/etl-sync-banner";
 import { MetricTooltip } from "@/components/help/metric-tooltip";
 import { TokenExpiredState } from "@/components/enterprise/token-expired-state";
 import { useWorkspace } from "@/contexts/workspace-context";
@@ -74,15 +75,6 @@ const MIN_VIABLE_SET: Record<WorkspaceGoal, ConnectionSlot[]> = {
     { id: "ads",   label: "ad platform",  anyOf: ["google_ads", "meta", "bing_ads"],  focus: "google_workspace" },
   ],
 };
-
-interface EtlStatus {
-  etlStatus: "idle" | "running" | "complete" | "error";
-  etlPhase: string;
-  etlPct: number;
-  etlRowsExtracted?: number;
-  lastResult?: { shopify: number; googleAds: number; mapping: number; durationMs: number } | null;
-  lastError?: string | null;
-}
 
 function GoogleLogo({ className }: { className?: string }) {
   return (
@@ -157,86 +149,6 @@ function MailchimpLogo({ className }: { className?: string }) {
       <path d="M18.93 11.6c-.32-.78-.85-1.45-1.53-1.91.15-.85-.02-1.6-.51-2.14-.59-.65-1.55-.92-2.47-.73-.64-.7-1.52-1.14-2.48-1.22-.99-.09-1.98.17-2.76.73-.65-.36-1.38-.55-2.13-.55-1.2 0-2.32.56-3.08 1.51-.66.82-1.02 1.87-1.02 2.95 0 .5.08.99.22 1.45-.57.62-.9 1.42-.93 2.27-.04 1.02.36 2 1.1 2.72a3.58 3.58 0 0 0 2.63 1.07c.15 0 .31-.01.46-.03.5.56 1.15.97 1.87 1.18.46.13.94.2 1.42.2.86 0 1.7-.23 2.44-.67.66.31 1.39.47 2.13.47 1.15 0 2.24-.43 3.06-1.21.86-.82 1.35-1.94 1.37-3.15.01-.92-.25-1.82-.77-2.56.05-.12.09-.25.13-.38z" fill="#FFE01B"/>
       <path d="M17.36 14.17c-.28.92-.9 1.68-1.73 2.13-.6.32-1.27.45-1.92.36a4.88 4.88 0 0 1-1.73 1.18c-.64.28-1.33.38-2.02.28a3.36 3.36 0 0 1-1.73-1c-.95.19-1.92-.05-2.66-.67-.67-.56-1.08-1.35-1.14-2.2a3.42 3.42 0 0 1-.13-2.85c-.42-.79-.52-1.7-.27-2.56.28-.96.95-1.74 1.86-2.18.23-.95.82-1.78 1.66-2.3.92-.57 2.03-.73 3.07-.44.74-.68 1.72-1.06 2.74-1.06h.12c.85.04 1.65.35 2.3.89.83-.08 1.64.18 2.22.73.49.47.76 1.1.77 1.79a4.3 4.3 0 0 1 1.44 2.13c.29.87.22 1.8-.18 2.62.48.72.72 1.57.62 2.42-.1.93-.57 1.78-1.28 2.38-.58.48-1.28.76-2.01.81" fill="#241C15"/>
     </svg>
-  );
-}
-
-function EtlSyncBanner({
-  shopName,
-  etl,
-  onDismiss,
-  onGoHome,
-}: {
-  shopName: string;
-  etl: EtlStatus | null;
-  onDismiss: () => void;
-  onGoHome: () => void;
-}) {
-  const isDone  = etl?.etlStatus === "complete";
-  const isError = etl?.etlStatus === "error";
-
-  return (
-    <section className={cn(
-      "bg-white border rounded-2xl p-5 shadow-sm transition-all",
-      isDone  ? "border-emerald-300 bg-emerald-50"
-              : isError
-              ? "border-[#F87171] bg-error-container"
-              : "border-primary-container/20 bg-primary-container/10/50",
-    )}>
-      <div className="flex items-center gap-3 mb-3">
-        <div className={cn(
-          "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
-          isDone ? "bg-emerald-100" : isError ? "bg-[var(--color-status-error-soft-bg)]" : "bg-[var(--color-status-info-soft-bg)]",
-        )}>
-          <span className={cn(
-            "material-symbols-outlined text-xl",
-            isDone ? "text-emerald-600" : isError ? "text-error-m3" : "text-primary-container animate-pulse",
-          )}>
-            {isDone ? "check_circle" : isError ? "error" : "sync"}
-          </span>
-        </div>
-        <div className="flex-1">
-          <p className={cn(
-            "text-sm font-bold",
-            isDone ? "text-emerald-700" : isError ? "text-on-error-container" : "text-on-surface",
-          )}>
-            {isDone ? "Shopify sync complete" : isError ? "Sync encountered an issue" : `Syncing ${shopName}…`}
-          </p>
-          <p className="text-xs text-secondary mt-0.5">
-            {isDone && etl?.lastResult
-              ? `${etl.lastResult.shopify} SKUs · ${etl.lastResult.mapping} ad links · ${(etl.lastResult.durationMs / 1000).toFixed(1)}s`
-              : isError
-              ? etl?.lastError ?? "Unknown error"
-              : (etl?.etlPhase ?? "Connecting to Shopify API…")}
-          </p>
-        </div>
-        {isDone && (
-          <button onClick={onDismiss} className="text-[10px] font-bold text-on-surface-variant hover:text-on-surface-variant transition-colors px-2 uppercase">dismiss</button>
-        )}
-      </div>
-
-      {!isDone && !isError && (
-        <div className="mb-3">
-          <div className="h-1 bg-surface-container-highest rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-primary-container transition-all duration-700" style={{ width: `${etl?.etlPct ?? 5}%` }} />
-          </div>
-          <div className="flex items-center justify-between mt-1.5">
-            <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{etl?.etlPhase ?? "Initialising…"}</span>
-            <span className="text-[10px] font-bold text-primary-container">{etl?.etlPct ?? 5}%</span>
-          </div>
-        </div>
-      )}
-
-      {isDone && (
-        <button onClick={onGoHome} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 uppercase">
-          <span className="material-symbols-outlined text-sm">bolt</span>
-          Run AI diagnostic sweep
-        </button>
-      )}
-
-      {!isDone && !isError && (
-        <p className="text-[10px] text-on-surface-variant">Warehouse will be ready in seconds — connect other platforms while you wait.</p>
-      )}
-    </section>
   );
 }
 
@@ -1298,7 +1210,7 @@ export default function Connections() {
         </div>
 
         {shopifyJustConnected && (
-          <EtlSyncBanner shopName={shopName} etl={etlStatus} onDismiss={() => setShopifyJustConnected(false)} onGoHome={handleGoHome} />
+          <EtlSyncBanner platform="shopify" accountName={shopName} etl={etlStatus} onDismiss={() => setShopifyJustConnected(false)} onGoHome={handleGoHome} />
         )}
 
         {(() => {

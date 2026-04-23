@@ -598,6 +598,17 @@ export function EcommerceDashboard({ onChat }: { onChat?: (msg: string) => void 
                     </button>
                   </div>
                 )}
+                {/* Per-tile freshness — surfaces the data age right next to the
+                    number so the user never has to wonder "is this current?". */}
+                {!t.skeleton && lastRefresh && (
+                  <p
+                    className="text-[9px] font-medium uppercase tracking-wider"
+                    style={{ color: t.subFg, opacity: 0.65 }}
+                    data-testid={`kpi-freshness-${t.key}`}
+                  >
+                    Updated {formatRelativeTime(lastRefresh, "just now")}
+                  </p>
+                )}
               </div>
               <div className="absolute -right-4 -bottom-4" style={{ opacity: 0.07 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 110 }}>{t.icon}</span>

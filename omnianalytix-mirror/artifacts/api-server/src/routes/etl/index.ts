@@ -69,6 +69,10 @@ async function executeEtlSync(orgId?: number | null) {
   etlState.pct = 3;
   etlState.rowsExtracted = 0;
   etlState.lastError = null;
+  // Clear the first-sync flag at the start of every run so a stale "true"
+  // from a previous completed run can never leak into a subsequent run if
+  // the new run fails before reaching the completion path.
+  etlState.wasFirstSync = false;
 
   const startedAt = Date.now();
   const report: {
@@ -699,6 +703,32 @@ async function executeEtlSync(orgId?: number | null) {
     durationMs: report.durationMs,
   };
 
+  // ── First-sync hook ────────────────────────────────────────────────────
+  // The first completed sync for this server lifetime is the moment of
+  // "first value" — the front-end shows the first-insight hero on Home,
+  // and the structured event below is the extension point a transactional
+  // email layer (SendGrid / Postmark / Resend) would subscribe to. No
+  // outbound mail is sent today since there is no SMTP module yet.
+  if (etlState.firstCompletedAt === null) {
+    etlState.firstCompletedAt = etlState.completedAt;
+    etlState.wasFirstSync = true;
+    logger.info(
+      {
+        event: "first_sync_completed",
+        completedAt: etlState.completedAt,
+        rows: {
+          shopify: report.shopify.synced,
+          googleAds: report.googleAds.synced,
+          mapping: report.mapping.synced,
+        },
+        durationMs: report.durationMs,
+      },
+      "First-ever ETL sync completed for this workspace — celebrate first value",
+    );
+  } else {
+    etlState.wasFirstSync = false;
+  }
+
   return report;
 }
 
@@ -792,6 +822,8 @@ router.get("/status", async (req, res) => {
       etlRowsExtracted: etlState.rowsExtracted,
       etlStartedAt:     etlState.startedAt,
       etlCompletedAt:   etlState.completedAt,
+      etlFirstCompletedAt: etlState.firstCompletedAt,
+      etlWasFirstSync:  etlState.wasFirstSync,
       lastResult:       etlState.lastResult,
       lastError:        etlState.lastError,
       warehouse_shopify_products:        shopifyCount,

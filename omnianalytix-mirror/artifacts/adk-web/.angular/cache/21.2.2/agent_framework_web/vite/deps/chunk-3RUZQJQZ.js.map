@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../node_modules/@angular/cdk/fesm2022/_css-pixel-value-chunk.mjs"],
+  "sourcesContent": ["function coerceCssPixelValue(value) {\n  if (value == null) {\n    return '';\n  }\n  return typeof value === 'string' ? value : `${value}px`;\n}\n\nexport { coerceCssPixelValue };\n\n"],
+  "mappings": ";AAAA,SAAS,oBAAoB,OAAO;AAClC,MAAI,SAAS,MAAM;AACjB,WAAO;AAAA,EACT;AACA,SAAO,OAAO,UAAU,WAAW,QAAQ,GAAG,KAAK;AACrD;",
+  "names": []
+}

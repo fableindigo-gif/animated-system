@@ -1,0 +1,9 @@
+---
+name: shopping_campaign_performance
+description: >
+  Get Google Shopping campaign performance from the Shopping Insider BigQuery
+  datasets. Returns per-campaign impressions, clicks, cost, conversions,
+  conversion value, CTR, CPC and ROAS over a date range. Use to answer "how
+  are my Shopping campaigns doing this week / last 30 days".
+---
+Use for time-bounded Shopping campaign performance questions.

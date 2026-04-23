@@ -1,0 +1,13 @@
+---
+name: query_warehouse
+description: >
+  Run a safe read-only SQL query against the internal analytics warehouse.
+  The warehouse pre-joins Shopify product/inventory data with Google Ads
+  campaign performance. Use for cross-platform questions like "which campaigns
+  are spending on out-of-stock products" or "POAS by SKU". Available tables:
+  warehouse_shopify_products (sku, title, inventory_qty, price, cogs),
+  warehouse_google_ads (campaign_name, cost_usd, conversions, clicks,
+  impressions), warehouse_cross_platform_mapping (google_ad_id,
+  shopify_product_id, sku). Views: v_ads_on_empty_shelves, v_poas_by_sku.
+---
+Read-only SELECT only. Use for cross-platform joins the dedicated tools don't cover.

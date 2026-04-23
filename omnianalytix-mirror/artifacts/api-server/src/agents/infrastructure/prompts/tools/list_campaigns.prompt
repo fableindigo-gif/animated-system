@@ -1,0 +1,8 @@
+---
+name: list_campaigns
+description: >
+  List all Google Ads campaigns for the connected account. Returns campaign
+  names, IDs, status, spend, ROAS, impressions, clicks and conversions. Use
+  this to understand the current campaign portfolio.
+---
+Use when the user wants an overview of their Google Ads campaign portfolio.

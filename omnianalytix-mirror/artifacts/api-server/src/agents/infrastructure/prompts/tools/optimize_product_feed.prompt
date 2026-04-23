@@ -1,0 +1,12 @@
+---
+name: optimize_product_feed
+description: >
+  Analyze a single Merchant Center / Google Shopping product through the
+  Shoptimizer service and return concrete feed-quality fixes. Use this when
+  the user asks "what's wrong with this SKU's feed?", "why is this product
+  disapproved?", or "how do I clean up this title/color/GTIN?". Returns the
+  optimized product, a list of plugins that fired (e.g. title-word-order,
+  color, identifier-exists), and a per-field diff showing exactly what changed.
+---
+Use for single-SKU feed quality fixes; for store-wide health use
+shopping_account_health instead.

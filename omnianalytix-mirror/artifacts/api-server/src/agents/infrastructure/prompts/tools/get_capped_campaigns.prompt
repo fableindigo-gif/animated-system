@@ -1,0 +1,12 @@
+---
+name: get_capped_campaigns
+description: >
+  Returns Google Ads campaigns that are losing impression share because their
+  daily budget is too low (capped). Reports each campaign's daily budget,
+  30-day spend, percentage of impressions lost, estimated missed conversions,
+  and the recommended budget to remove the cap. Use this when the user asks
+  about capped campaigns, budget constraints, or missed conversions in
+  Google Ads.
+---
+Use the omni-assistant variant for chat; the gap-finder/growth-engine agents
+use identify_budget_constraints (an unscoped variant) instead.

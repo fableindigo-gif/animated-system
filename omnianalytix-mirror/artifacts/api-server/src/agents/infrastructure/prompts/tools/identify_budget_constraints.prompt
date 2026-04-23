@@ -1,0 +1,9 @@
+---
+name: identify_budget_constraints
+description: >
+  Identify campaigns that are hitting their daily budget cap (spend ≥ 95% of
+  estimated budget). Returns a list of constrained campaigns with lost
+  impression share and recommended budget increases to recover missed revenue.
+---
+Use when the user asks about budget caps, lost impression share, or "where are
+we leaving money on the table".

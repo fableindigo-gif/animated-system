@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1776776109937,
+      "tag": "0000_ai_gads_guardrails",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776777415816,
+      "tag": "0001_ai_gads_guardrails_fix",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776895618947,
+      "tag": "0002_quiet_archangel",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777148400000,
+      "tag": "0003_promote_super_admins",
+      "breakpoints": true
+    }
+  ]
+}

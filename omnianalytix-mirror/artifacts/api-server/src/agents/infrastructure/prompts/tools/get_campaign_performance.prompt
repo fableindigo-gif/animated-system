@@ -1,0 +1,32 @@
+---
+name: get_campaign_performance
+description: >
+  Returns aggregate ad campaign performance for the caller's organisation:
+  total spend, clicks, conversions, revenue and ROAS, plus a per-campaign
+  breakdown sorted by spend. Prefers live Google Ads data when a Google Ads
+  connection is available, and falls back to the warehouse bi_ad_performance
+  table otherwise. Accepts an optional 'days' window (1–365, default 30),
+  an optional 'limit' (1–50, default 10) for the number of top
+  campaigns to return, an optional 'campaign_name' (case-insensitive
+  substring match) for a single-campaign deep dive, and an optional
+  'campaign_names' (array of 2–5 case-insensitive substrings) for a native
+  side-by-side comparison. When 'campaign_name' or 'campaign_names' is
+  supplied, the live Google Ads search runs a direct GAQL query against
+  campaign.name over the requested 'days' window and returns matches
+  regardless of status (ENABLED, PAUSED, REMOVED) — so questions like
+  "how did our Black Friday 2024 campaign do?" work even when that
+  campaign is paused or outside the active 30-day window. Pass a wider
+  'days' (e.g. 365) for older campaigns. When no campaigns match, the
+  response includes an `available_campaigns` list of nearby paused/older
+  campaign names so you can guide the user to a valid choice. The
+  aggregate (no campaign_name) live view always uses the last 30 days of
+  active campaigns. Use this when the user asks about campaign
+  performance, total spend, ROAS, conversions, click volume, revenue
+  across their ad campaigns, about a specific campaign by name (active
+  or paused / older), or to compare named campaigns.
+---
+Live Google Ads always wins; warehouse fallback is for tenants without an
+ads connection. The warehouse rolls up data per channel (not per campaign),
+so a campaign_name lookup against the warehouse is best-effort against the
+channel name only. For paused / older campaigns, prefer the live path with
+a wider 'days' window.

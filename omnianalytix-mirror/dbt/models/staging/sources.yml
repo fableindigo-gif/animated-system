@@ -1,0 +1,49 @@
+version: 2
+
+# Source declarations for the warehouse_* tables that the API server populates
+# (via GAARF for ads, Shopify connector for products, and the mapping job for
+# cross-platform joins). Models depend on these via `{{ source(...) }}` instead
+# of hard-coded table names — that gives us:
+#   - explicit lineage in `dbt docs`
+#   - freshness checks (`dbt source freshness`)
+#   - one place to flip schema/table names if the warehouse ever moves.
+sources:
+  - name: warehouse
+    description: "Raw warehouse tables, owned and refreshed by the API server."
+    schema: public
+    tables:
+      - name: warehouse_google_ads
+        description: "Per-ad rollup of Google Ads cost / conversions / impressions."
+        columns:
+          - name: ad_id
+            description: "Google Ads ad ID. Unique within an account."
+            data_tests: [not_null]
+          - name: cost_usd
+            description: "Total cost in USD for the rollup window."
+          - name: conversions
+            description: "Total conversions (count, not value) for the rollup window."
+
+      - name: warehouse_shopify_products
+        description: "Per-product Shopify state: title, price, inventory, COGS."
+        columns:
+          - name: product_id
+            description: "Shopify GID for the product."
+            data_tests: [not_null]
+          - name: sku
+            description: "Merchant-defined SKU. May be empty for variants without one."
+
+      - name: warehouse_cross_platform_mapping
+        description: "Edges joining a Google Ad → Shopify product (one ad may map to many products)."
+        columns:
+          - name: google_ad_id
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('warehouse', 'warehouse_google_ads')
+                  field: ad_id
+          - name: shopify_product_id
+            data_tests:
+              - not_null
+              - relationships:
+                  to: source('warehouse', 'warehouse_shopify_products')
+                  field: product_id

@@ -1,0 +1,8 @@
+---
+name: calculate_account_headroom
+description: >
+  Calculate how much additional budget the Google Ads account could profitably
+  absorb before diminishing returns kick in. Returns current efficiency score,
+  estimated headroom amount, and scaling readiness grade.
+---
+Use when the user asks how much they could scale spend before efficiency drops.

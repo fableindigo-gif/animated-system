@@ -1,0 +1,58 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "prepare": "sh -c 'git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true'",
+    "scan:secrets": "node scripts/scan-secrets.mjs --all",
+    "scan:secrets:staged": "node scripts/scan-secrets.mjs --staged",
+    "scan:large-files": "node scripts/scan-large-files.mjs --all",
+    "scan:large-files:staged": "node scripts/scan-large-files.mjs --staged",
+    "test:scan-secrets": "node scripts/test-scan-secrets.mjs",
+    "test:scan-large-files": "node scripts/test-scan-large-files.mjs",
+    "test:check-currency-leaks": "node scripts/test-check-currency-leaks.mjs",
+    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "check:silent-catches": "node scripts/check-silent-catches.mjs",
+    "check:tenant-ownership": "node scripts/check-tenant-ownership.mjs",
+    "check:sql-ambiguous-columns": "node scripts/check-sql-ambiguous-columns.mjs",
+    "check:currency-leaks": "node scripts/check-currency-leaks.mjs",
+    "check:workspace-id-source": "node scripts/check-workspace-id-source.mjs",
+    "test:check-workspace-id-source": "node scripts/test-check-workspace-id-source.mjs",
+    "check:all": "pnpm run check:silent-catches && pnpm run check:tenant-ownership && pnpm run check:sql-ambiguous-columns && pnpm run check:currency-leaks && pnpm run check:workspace-id-source",
+    "preflight:smoke": "node scripts/preflight-smoke.mjs",
+    "preflight:tenant-fuzz": "node scripts/preflight-tenant-fuzz.mjs",
+    "preflight:runtime": "pnpm run preflight:smoke && pnpm run preflight:tenant-fuzz",
+    "preflight": "pnpm run check:all && pnpm run typecheck:libs",
+    "preflight:full": "pnpm run check:all && pnpm run typecheck",
+    "preflight:gate": "pnpm run check:all && pnpm run typecheck && pnpm run preflight:runtime",
+    "monitor:synthetic": "node scripts/synthetic-monitor.mjs",
+    "monitor:digest-5xx": "node scripts/digest-5xx.mjs"
+  },
+  "private": true,
+  "pnpm": {
+    "minimumReleaseAgeExclude": [
+      "@opentelemetry/api-logs",
+      "@opentelemetry/exporter-logs-otlp-http",
+      "@opentelemetry/exporter-metrics-otlp-http",
+      "@opentelemetry/exporter-trace-otlp-http",
+      "@opentelemetry/resource-detector-gcp",
+      "@opentelemetry/resources",
+      "@opentelemetry/sdk-logs",
+      "@opentelemetry/sdk-metrics",
+      "@opentelemetry/sdk-trace-base",
+      "@opentelemetry/sdk-trace-node",
+      "@google-cloud/opentelemetry-cloud-monitoring-exporter",
+      "@google-cloud/opentelemetry-cloud-trace-exporter",
+      "@google-cloud/storage",
+      "google-ads-api-report-fetcher"
+    ]
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1",
+    "ruflo": "^3.5.80",
+    "typescript": "~5.9.2"
+  }
+}

@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: ads_on_empty_shelves
+    description: >
+      Ads currently spending budget on out-of-stock SKUs. Read by the
+      Gap Finder agent and the Live Triage page. Refresh cadence is
+      whatever cron runs `dbt run --select marts.*`.
+    columns:
+      - name: campaign_name
+        description: "Google Ads campaign name."
+        data_tests: [not_null]
+      - name: cost_usd
+        description: >
+          USD cost on this ad while the SKU is out of stock. A `>= 0`
+          range assertion belongs here once we add dbt_utils via
+          `packages.yml`; until then we keep it as `not_null` only so
+          the project stays parseable without an extra dep.
+        data_tests:
+          - not_null
+      - name: sku
+        description: "Shopify SKU. Empty string for variants without an SKU."
+      - name: inventory_qty
+        description: "Always 0 in this mart — the WHERE clause filters on it."
+
+  - name: poas_by_sku
+    description: >
+      Profit-On-Ad-Spend per SKU using warehouse COGS. Lower bound — the
+      runtime `compute_poas` tool layers platform fees + returns on top.
+    columns:
+      - name: sku
+        description: "Shopify SKU. PRIMARY KEY of this mart."
+        data_tests:
+          - not_null
+          - unique
+      - name: poas
+        description: >
+          (conversions × gross_profit) / ad_spend. NULL when ad_spend is 0.

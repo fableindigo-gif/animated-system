@@ -1,0 +1,8 @@
+---
+name: get_store_revenue_summary
+description: >
+  Retrieve a 30-day revenue summary for the Shopify store including total
+  revenue, AOV, order count, top 5 revenue-generating products, and revenue
+  trend (vs prior 30 days).
+---
+Use as the cheap first call when the user asks "how is the store doing".

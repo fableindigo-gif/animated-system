@@ -1,0 +1,20 @@
+# dbt connection profile for OmniAnalytix.
+#
+# Reads connection params from the same env vars the API server already uses,
+# so no extra secrets need to be configured. Passing this file explicitly via
+# `--profiles-dir ./dbt` keeps it out of ~/.dbt and version-controlled with
+# the project.
+omnianalytix:
+  target: dev
+  outputs:
+    dev:
+      type:     postgres
+      host:     "{{ env_var('PGHOST') }}"
+      port:     "{{ env_var('PGPORT') | int }}"
+      user:     "{{ env_var('PGUSER') }}"
+      password: "{{ env_var('PGPASSWORD') }}"
+      dbname:   "{{ env_var('PGDATABASE') }}"
+      schema:   public
+      threads:  4
+      sslmode:  "{{ env_var('PGSSLMODE', 'prefer') }}"
+      keepalives_idle: 30

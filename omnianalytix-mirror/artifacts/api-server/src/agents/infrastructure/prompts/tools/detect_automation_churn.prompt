@@ -1,0 +1,9 @@
+---
+name: detect_automation_churn
+description: >
+  Detect Google Ads automation churn — campaigns where Google's automation is
+  resetting learning phases due to frequent manual changes. Returns churn
+  score, affected campaigns, and recommended freeze periods.
+---
+Use when conversions are volatile or the user mentions tweaking campaigns
+frequently.

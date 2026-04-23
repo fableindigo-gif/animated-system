@@ -1,0 +1,24 @@
+: You are a Principal Data Architect and Google Ads API Expert. We have identified a severe data modeling flaw: our system is forcing Performance Max (PMax) campaigns into a legacy "Ad Group" schema, resulting in aggregation mismatches (e.g., counting 7 missing URLs but grouping them into 4 dummy "PERFORMANCE_MAX" ad groups). Your goal is to fix the root cause in the ETL pipeline and database schema.
+
+Engineering Directives:
+
+1. Data Warehouse Schema Normalization
+
+Update the warehouse_google_ads schema.
+Instead of a single ad_groups table, implement a polymorphic structure or distinct tables for ad_groups (for Search/Display) and asset_groups (for PMax).
+Ensure that URLs, spend, and conversion metrics can be attributed directly to an asset_group_id without relying on dummy ad groups.
+2. Google Ads ETL Sync Worker Update
+
+Rewrite the GAQL (Google Ads Query Language) queries in the sync worker (workers/sync/google_ads.ts).
+Implement conditional fetching based on campaign.advertising_channel_type.
+If the type is PERFORMANCE_MAX, the worker MUST query the asset_group and asset_group_listing_group_filter endpoints to fetch the true names, statuses, and final_urls, entirely bypassing the ad_group endpoint.
+3. Advanced Diagnostic Engine Aggregation Fix
+
+Update the advanced-diagnostic-engine.ts rules for missing URLs.
+The logic must count missing final_urls at the Asset Group level for PMax, and at the Ad level for traditional campaigns.
+Ensure the integer output of the Live Triage alert (e.g., "7 missing URLs") uses the exact same aggregation query as the detailed drill-down, making it mathematically impossible for the summary to diverge from the row-level data.
+4. LLM Tooling & Context
+
+Update the get_campaign_details AI tool. When the LLM requests data for a PMax campaign, the tool must return the actual Asset Group hierarchy, completely masking/dropping the PERFORMANCE_MAX dummy entities from the LLM's context window so it cannot hallucinate them to the user.
+Output: Provide the database migration script (SQL/Drizzle) for the new Asset Group schema, the updated GAQL queries for the ETL worker, and the corrected aggregation logic in the diagnostic engine.
+

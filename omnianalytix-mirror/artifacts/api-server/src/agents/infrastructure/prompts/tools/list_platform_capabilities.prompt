@@ -1,0 +1,7 @@
+---
+name: list_platform_capabilities
+description: >
+  Lists all modules and AI features available in OmniAnalytix. Useful when
+  users ask what the platform can do.
+---
+Use as the meta "what can you do for me" answer.

@@ -1,0 +1,9 @@
+---
+name: shopping_top_products
+description: >
+  List top- or bottom-performing products from Shopping Insider. Returns
+  offer_id, title, brand, impressions, clicks, cost, conversions, conversion
+  value and ROAS. Use for "what are my top-converting SKUs" or "which products
+  are wasting ad spend".
+---
+Use direction='bottom' to find waste; default direction='top' surfaces winners.

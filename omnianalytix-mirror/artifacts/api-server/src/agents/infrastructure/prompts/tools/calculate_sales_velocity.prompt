@@ -1,0 +1,8 @@
+---
+name: calculate_sales_velocity
+description: >
+  Calculate the 7-day sales velocity (units sold per day) for a specific
+  Shopify product. Returns velocity class (FAST/STEADY/SLOW/STALE), days of
+  supply remaining, and restock urgency.
+---
+Use when the user asks about restock timing, days of cover, or per-SKU sell-through.

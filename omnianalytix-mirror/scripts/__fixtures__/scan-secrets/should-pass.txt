@@ -1,0 +1,17 @@
+// Real-world strings that historically caused false positives. None of
+// these should trip the scanner. If one does, fix the detector — don't
+// add a suppression marker to this file.
+
+const contentType = "application/x-www-form-urlencoded";
+const importPath = "buildFreshGoogleCredentialsMap";
+const url = "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined";
+const fontUrl = "https://github.com/better-auth/better-auth/blob/main/packages/core";
+const sha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+const gitSha = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678";
+const integrity = "sha512-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+const camelCaseIdentifier = "googleAds_getPMaxNetworkDistribution";
+const widgetName = "WidgetRegistryGoalTypeECOMMERCEPOAS";
+const goalKeyword = "POAS+Revenue+Share+Of+Wallet+Customer";
+const examplePath = "artifacts/api-server/src/lib/google-token-refresh.ts";
+const exampleEnv = "your-api-key-goes-here-replace-me";
+const placeholderToken = "REPLACE_ME_WITH_A_REAL_TOKEN_VALUE";

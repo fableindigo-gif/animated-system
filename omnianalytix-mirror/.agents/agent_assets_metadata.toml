@@ -1,0 +1,86 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "dYIgrgVpUrop7fN5L2fhw"
+uri = "file://.local/RED_TEAM_VULNERABILITY_REPORT.md"
+type = "text"
+title = "Red Team Vulnerability Report — OmniAnalytix"
+
+[[outputs]]
+id = "cTyjR8e6g4DLh4OI7ezQW"
+uri = "file://screenshots/01-goal-selection-full.jpg"
+type = "image"
+title = "1. Goal Selection (Step 1 of 2)"
+
+[[outputs]]
+id = "jcXflDSYuE4AT9q7s1PXm"
+uri = "file://screenshots/02-password-gate.jpg"
+type = "image"
+title = "2. Password Gate / Login"
+
+[[outputs]]
+id = "t8JpoDpUqO5D-iomQQDw3"
+uri = "file://screenshots/03-home-dashboard.jpg"
+type = "image"
+title = "3. Home — AI Command Center"
+
+[[outputs]]
+id = "-2ilwk2Y0ZasfOgxRxMMp"
+uri = "file://screenshots/04-connections.jpg"
+type = "image"
+title = "4. Platform Connections"
+
+[[outputs]]
+id = "UlGS6feqBZMogGDCiBlLx"
+uri = "file://screenshots/05-team.jpg"
+type = "image"
+title = "5. Team & Access Management"
+
+[[outputs]]
+id = "I0aJ7GjH-1w0sZjd_FwJQ"
+uri = "file://screenshots/06-forensic.jpg"
+type = "image"
+title = "6. Forensic Auditor"
+
+[[outputs]]
+id = "qjF7Z0kJWZ2zYt0xS98ou"
+uri = "file://screenshots/08-agency-command-center.jpg"
+type = "image"
+title = "7. Agency Command Center"
+
+[[outputs]]
+id = "8aqLFlsh6hzPC1LoZtk5w"
+uri = "file://screenshots/09-privacy-policy.jpg"
+type = "image"
+title = "8. Privacy Policy"
+
+[[outputs]]
+id = "uY63hmCMzEDjnlYm0Cd-e"
+uri = "file://.local/OmniAnalytix_Master_Audit_Report.md"
+type = "text"
+title = "OmniAnalytix Master Audit Report"
+
+[[outputs]]
+id = "q4ALxTQ1ho3xEbkDHwqq5"
+uri = "file://artifacts/ecom-agent/public/stack-verification-report.md"
+type = "text"
+title = "OmniAnalytix Stack Verification Report"
+
+[[outputs]]
+id = "N-7arPkCvrvBf_JVqobnf"
+uri = "file://.local/frontend-logic-audit.md"
+type = "text"
+title = "Frontend Logic & Wiring Audit Report"
+
+[[outputs]]
+id = "70rL4iqyPNy7dxQWTacK1"
+uri = "file://.local/production-readiness-audit.md"
+type = "text"
+title = "OmniAnalytix Production-Readiness Audit"
+
+[[outputs]]
+id = "Du7luu2vbl4ydMr7eHQM9"
+uri = "file://.local/frontend-audit-report.md"
+type = "text"
+title = "Frontend Logic & Wiring Audit Report"

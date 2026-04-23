@@ -1,0 +1,29 @@
+kind = "web"
+  previewPath = "/"
+  title = "OmniAnalytix"
+  version = "1.0.0"
+  id = "artifacts/ecom-agent"
+  router = "path"
+
+  [[integratedSkills]]
+  name = "react-vite"
+  version = "1.0.0"
+
+  [[services]]
+  name = "web"
+  paths = [ "/" ]
+  localPort = 25974
+
+  [services.development]
+  run = "pnpm --filter @workspace/ecom-agent run dev"
+
+  [services.production]
+  build = [ "pnpm", "--filter", "@workspace/ecom-agent", "run", "build" ]
+
+  [services.production.run]
+  args = ["node", "artifacts/ecom-agent/server.mjs"]
+
+  [services.env]
+  PORT = "25974"
+  BASE_PATH = "/"
+  

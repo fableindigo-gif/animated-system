@@ -1,0 +1,8 @@
+---
+name: shopping_product_issues
+description: >
+  List Merchant Center product issues / disapprovals from Shopping Insider.
+  Returns offer_id, issue_code, description and affected item count. Use for
+  "which products have disapproval issues" or "what's blocking my feed".
+---
+Use for diagnosing feed disapprovals; pair with optimize_product_feed for fixes.

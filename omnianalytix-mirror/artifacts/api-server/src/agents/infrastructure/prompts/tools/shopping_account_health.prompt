@@ -1,0 +1,8 @@
+---
+name: shopping_account_health
+description: >
+  Account-level Merchant Center health from Shopping Insider: total /
+  approved / disapproved / pending / active product counts and approval rate.
+  Use for "overall feed health" questions.
+---
+Use as the cheap first call before diving into per-product issues.

@@ -1,0 +1,12 @@
+---
+name: omni_get_store_revenue_summary
+description: >
+  Returns a Shopify store revenue snapshot covering the last 30 days and last
+  7 days: total revenue, order count, and 30-day average order value (AOV).
+  Use this when the user asks about store revenue, sales totals, order
+  volume, AOV, average order value, or how revenue/orders are trending over
+  the last week or month.
+---
+This is the omni-assistant chat variant. Distinct from the gap-finder /
+growth-engine `get_store_revenue_summary` which returns top-5 products and
+trend instead of a 7-day window.

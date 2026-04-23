@@ -1,0 +1,548 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+/*
+ * Google Sans is a proprietary typeface not available on the public Google
+ * Fonts CDN. The local() declarations below resolve it on any device that
+ * already has it installed (Android, Chrome OS, Google apps on desktop).
+ * On all other devices the font stack falls through to Roboto — which IS
+ * loaded from Google Fonts in index.html — so headings are always crisp.
+ */
+@font-face {
+  font-family: 'Google Sans';
+  src: local('Google Sans'), local('GoogleSans-Regular'), local('ProductSans-Regular');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans';
+  src: local('Google Sans Medium'), local('GoogleSans-Medium'), local('ProductSans-Medium');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Google Sans';
+  src: local('Google Sans Bold'), local('GoogleSans-Bold'), local('ProductSans-Bold');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-primary-border: var(--sidebar-primary-border);
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-accent-border: var(--sidebar-accent-border);
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --color-surface: #f9f9fe;
+  --color-surface-dim: #d9dade;
+  --color-surface-bright: #f9f9fe;
+  --color-surface-container: #ededf2;
+  --color-surface-container-low: #f3f3f8;
+  --color-surface-container-high: #e8e8ed;
+  --color-surface-container-highest: #e2e2e7;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-variant: #e2e2e7;
+  --color-surface-tint: #0053db;
+
+  --color-on-surface: #1a1c1f;
+  --color-on-surface-variant: #434655;
+  --color-on-background: #1a1c1f;
+  --color-on-secondary-container: #475569;
+  --color-on-tertiary-container: #ffede6;
+  --color-on-secondary-fixed-variant: #38485d;
+  --color-on-secondary-fixed: #0b1c30;
+  --color-on-primary-fixed: #00174b;
+  --color-on-primary-fixed-variant: #003ea8;
+  --color-on-tertiary-fixed: #360f00;
+  --color-on-tertiary-fixed-variant: #7d2d00;
+
+  --color-outline: #737686;
+  --color-outline-variant: #c3c6d7;
+
+  /* WCAG AA: darkened from #2563eb (failed 4.5:1 on darker surface
+     containers) to #1d4ed8 — Tailwind blue-700 — preserving brand
+     identity while passing 5.1:1 on bg-surface-variant. */
+  --color-accent-blue: #1d4ed8;
+  --color-brand-blue: #004ac6;
+
+  --color-primary-m3: #004ac6;
+  --color-primary-container: #2563eb;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #eeefff;
+  --color-primary-fixed: #dbe1ff;
+  --color-primary-fixed-dim: #b4c5ff;
+
+  --color-secondary-m3: #505f76;
+  --color-secondary-container: #d0e1fb;
+  --color-on-secondary: #ffffff;
+  --color-secondary-fixed: #d3e4fe;
+  --color-secondary-fixed-dim: #b7c8e1;
+
+  --color-tertiary: #943700;
+  --color-tertiary-container: #bc4800;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-fixed: #ffdbcd;
+  --color-tertiary-fixed-dim: #ffb596;
+
+  --color-error-m3: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  --color-inverse-surface: #2e3034;
+  --color-inverse-on-surface: #f0f0f5;
+  --color-inverse-primary: #b4c5ff;
+
+  --font-sans:    var(--app-font-sans);
+  --font-heading: var(--app-font-heading);
+  --font-mono:    var(--app-font-mono);
+
+  /* ── Omni brand design tokens ─────────────────────────────────────────────
+   * These semantic aliases map the OmniAnalytix brand palette into Tailwind.
+   * Use bg-omni-primary / text-omni-secondary / ring-omni-tertiary etc.
+   * Changing a hex here propagates instantly to every component that uses
+   * the semantic class — never hard-code the hex in component files.
+   */
+  --color-omni-primary:   #1a73e8;
+  --color-omni-secondary: #475569;
+  --color-omni-tertiary:  #10b981;
+  --color-omni-neutral:   #f8fafc;
+  --color-omni-sidebar:   #004ac6;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --background: 240 20% 98%;
+  --foreground: 220 14% 11%;
+
+  --border: 230 16% 81%;
+  --input: 240 6% 93%;
+  --ring: 217 100% 39%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 220 14% 11%;
+  --card-border: 230 16% 81% / 0.15;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 14% 11%;
+  --popover-border: 230 16% 81% / 0.15;
+
+  --primary: 217 100% 39%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 240 6% 93%;
+  --secondary-foreground: 215 19% 39%;
+
+  --muted: 240 6% 95%;
+  /* WCAG AA: darkened from 233 6% 49% (≈ #767882, 4.4:1) to 233 8% 38%
+     (≈ #5a5d6a, 7.1:1 on bg-surface #f9f9fe) so muted body text passes
+     the 4.5:1 small-text threshold across all surfaces. */
+  --muted-foreground: 233 8% 38%;
+
+  --accent: 217 100% 39%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 75% 42%;
+  --destructive-foreground: 0 0% 100%;
+
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 220 14% 11%;
+  --sidebar-border: 240 6% 95%;
+  --sidebar-primary: 217 100% 39%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 217 91% 97%;
+  --sidebar-accent-foreground: 217 100% 39%;
+  --sidebar-ring: 217 100% 39%;
+
+  --app-font-sans:    'Roboto', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --app-font-heading: 'Google Sans', 'Roboto', ui-sans-serif, sans-serif;
+  --app-font-mono:    ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, 'Courier New', monospace;
+
+  --radius: 1rem;
+
+  --primary-border: hsl(230 16% 81% / 0.15);
+  --secondary-border: hsl(230 16% 81% / 0.15);
+  --muted-border: hsl(230 16% 81% / 0.15);
+  --accent-border: hsl(217 100% 39% / 0.15);
+  --destructive-border: hsl(0 75% 42% / 0.15);
+  --sidebar-primary-border: hsl(217 100% 39% / 0.15);
+  --sidebar-accent-border: hsl(217 91% 97% / 0.3);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-surface text-on-surface;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * Heading font — Google Sans (falls back to Roboto).
+   * Applied globally to all semantic headings and the .font-heading utility.
+   * letter-spacing tightened slightly: Google Sans has wider natural spacing
+   * than Inter/Manrope so -0.015em restores the "tight editorial" feel.
+   * Weights stay at 500–700 which pass 4.5:1 contrast on bg-surface (#f9f9fe).
+   */
+  h1, h2, h3, h4, .font-heading {
+    font-family: var(--font-heading);
+    letter-spacing: -0.015em;
+  }
+
+  /*
+   * Monospace — applies to all semantic code/pre elements and the .font-mono
+   * utility. The ui-monospace lead ensures native system mono (SF Mono on Mac,
+   * Cascadia on Windows) is tried first, giving crisp number alignment in
+   * KPI grids, raw-log panels, and Live Triage JSON payloads.
+   */
+  code, pre, kbd, samp, .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ── A11y: prefers-reduced-motion override ──────────────────────────────────
+ * Users who ask their OS for reduced motion (common for vestibular /
+ * migraine sensitivity) should not see non-essential transitions or the
+ * Tailwind / `tw-animate-css` `animate-*` keyframes. We neutralise them
+ * globally here; framer-motion is handled separately via <MotionConfig
+ * reducedMotion="user"> in main.tsx. WCAG 2.3.3.
+ *
+ * We use `!important` because many component-level styles set their own
+ * transition/animation durations via utility classes.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.80);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-header {
+  background: rgba(255, 255, 255, 0.70);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.btn-primary-glow {
+  background: linear-gradient(145deg, #004ac6 0%, #2563EB 100%);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 9999px;
+}
+.btn-primary-glow:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.25);
+}
+
+.satin-gradient {
+  background: linear-gradient(145deg, #004ac6 0%, #2563EB 100%);
+  border-radius: 9999px;
+}
+.satin-gradient:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.25);
+}
+
+.terminal-scroll::-webkit-scrollbar       { width: 6px; }
+.terminal-scroll::-webkit-scrollbar-track { background: transparent; }
+.terminal-scroll::-webkit-scrollbar-thumb { background: #e2e2e7; border-radius: 10px; }
+
+.progress-primary {
+  background: #2563EB;
+}
+.progress-secondary {
+  background: #22c55e;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.label-sm {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.text-secondary {
+  color: #434655;
+}
+
+.ambient-shadow {
+  box-shadow: 0 32px 48px -12px rgba(115, 118, 134, 0.2);
+}
+
+.ambient-shadow-sm {
+  box-shadow: 0 2px 32px rgba(212, 212, 216, 0.40);
+}
+
+.ambient-shadow-xl {
+  box-shadow: 0 48px 80px -16px rgba(0, 0, 0, 0.12);
+}
+
+.ghost-border {
+  outline: 1px solid rgba(195, 198, 215, 0.15);
+}
+
+.tight-heading {
+  letter-spacing: -0.04em;
+}
+
+.editorial-tight {
+  letter-spacing: -0.02em;
+}
+
+.editorial-tighter {
+  letter-spacing: -0.04em;
+}
+
+.hero-gradient {
+  background: radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.05) 0%, rgba(249, 249, 254, 0) 70%);
+}
+
+.tonal-shift-no-border {
+  background-color: #f3f3f8;
+}
+
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* ── Tri-tone Alert System ───────────────────────────────────────────────────
+ * Success (Emerald): tracking accurate, sync < 4h old
+ * Warning (Amber):   sync > 4h old or minor anomaly
+ * Critical (Crimson): failed health check, active margin leak, sync > 12h
+ */
+:root {
+  --color-status-success-bg:  #ecfdf5;
+  --color-status-success-fg:  #065f46;
+  --color-status-success-border: #6ee7b7;
+  --color-status-success-dot: #10b981;
+
+  --color-status-warning-bg:  #fffbeb;
+  --color-status-warning-fg:  #92400e;
+  --color-status-warning-border: #fcd34d;
+  --color-status-warning-dot: #f59e0b;
+
+  --color-status-critical-bg:  #fff1f2;
+  --color-status-critical-fg:  #881337;
+  --color-status-critical-border: #fda4af;
+  --color-status-critical-dot: #f43f5e;
+}
+
+/* ── Skeleton shimmer loaders ────────────────────────────────────────────────
+ * Apply .skeleton-shimmer to any placeholder element.
+ */
+@keyframes skeleton-wave {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #e8e8ed;
+  border-radius: 0.5rem;
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 40%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.55) 60%,
+    transparent 100%
+  );
+  animation: skeleton-wave 1.6s ease-in-out infinite;
+}
+
+/* ── Live Triage pulse ring ──────────────────────────────────────────────────
+ * Wraps the triage status indicator when an audit is running.
+ */
+@keyframes triage-pulse-ring {
+  0%   { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0.55); }
+  60%  { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);    }
+  100% { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0);    }
+}
+
+.triage-ring-pulse {
+  animation: triage-pulse-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ── High-contrast primary buttons with internal glow ───────────────────────
+ * 4px rounded-lg, internal glow on hover. Use class .btn-primary-hi-contrast.
+ */
+.btn-primary-hi-contrast {
+  background: linear-gradient(145deg, #003fb5 0%, #1a5fd6 60%, #2563eb 100%);
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 2px 8px rgba(37, 99, 235, 0.20);
+  transition: box-shadow 180ms ease, filter 180ms ease, transform 100ms ease;
+}
+.btn-primary-hi-contrast:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    0 4px 20px rgba(37, 99, 235, 0.40),
+    0 0 0 1px rgba(37, 99, 235, 0.25);
+  filter: brightness(1.06);
+}
+.btn-primary-hi-contrast:active {
+  transform: scale(0.97);
+  filter: brightness(0.97);
+}
+.btn-primary-hi-contrast:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Authorize button loading spinner ───────────────────────────────────────
+ * Use inside a <button disabled> with the .btn-loading class.
+ */
+@keyframes btn-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── Sidebar slim mode ───────────────────────────────────────────────────────
+ * Sidebar animates between w-[260px] (full) and w-[72px] (slim).
+ * Transition driven by Framer Motion spring — no CSS transition needed here.
+ */
+.sidebar-label {
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 150ms ease, max-width 250ms ease;
+}
+.sidebar-collapsed .sidebar-label {
+  max-width: 0;
+  opacity: 0;
+}
+
+/* ── Bento grid data-flow background pattern ─────────────────────────────────
+ * Subtle SVG dot pattern for integration cards. Use .bento-data-flow.
+ */
+.bento-data-flow {
+  background-image: radial-gradient(circle, rgba(195, 198, 215, 0.35) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+/* ── Command Palette category icon badge ────────────────────────────────────
+ */
+.cmd-category-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}

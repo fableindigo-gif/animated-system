@@ -1,0 +1,10 @@
+---
+name: get_inventory_alerts
+description: >
+  Returns a health summary of the Shopify store inventory: total tracked
+  variants, how many are out-of-stock (OOS), how many are low-stock (≤5
+  units), and a sample list of affected SKUs. Use this when the user asks
+  about inventory levels, out-of-stock products, low-stock SKUs, or stockout
+  risks.
+---
+Use for store-wide inventory snapshots in the omni-assistant chat surface.

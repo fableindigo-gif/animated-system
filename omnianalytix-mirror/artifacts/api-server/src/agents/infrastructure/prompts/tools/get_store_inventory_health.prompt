@@ -1,0 +1,9 @@
+---
+name: get_store_inventory_health
+description: >
+  Sweep the entire Shopify store inventory to classify all SKUs by velocity
+  (FAST/STEADY/SLOW/STALE) and flag out-of-stock risk. Returns aggregate
+  health score, overstock count, stockout risk count, and top 10 products by
+  each class.
+---
+Use for store-wide inventory health questions, not single-SKU questions.

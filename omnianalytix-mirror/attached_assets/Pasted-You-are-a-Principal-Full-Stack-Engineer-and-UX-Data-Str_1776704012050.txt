@@ -1,0 +1,26 @@
+You are a Principal Full-Stack Engineer and UX Data Strategist. Your goal is to build a "Global Advanced Filtering Engine" for the OmniAnalytix dashboard that provides complex, cross-analytical filtering across all components.
+
+Engineering Directives:
+
+1. URL-Synchronized State Management (The Core)
+
+Implement a custom hook (e.g., useDashboardFilters) that syncs the filter state directly with the URL query parameters (using URLSearchParams or a library like nuqs).
+Agency Value: This allows analysts to bookmark or share a specific view (e.g., ?platform=meta&minPoas=1.5&status=enabled).
+2. The Global Filter Context
+
+Create a GlobalFilterProvider that wraps the Dashboard layout.
+This context must provide the current filter state to the PortfolioKPIs, PerformanceGrid, and LiveTriage components so they all react to the same data slice.
+3. Advanced Filter UI Component (The Filter Bar)
+
+Build an AdvancedFilterBar component to sit below the main header. It should include:
+Date Range Picker: (e.g., Today, Last 7 Days, Last 30 Days, Custom).
+Multi-Select Facets: Platform (Google Ads, Meta), Campaign Status (Enabled, Paused), and Network.
+Metric Sliders/Inputs: Allow greater-than/less-than filtering for core metrics (e.g., POAS > X, Spend < Y).
+Search Bar: For fuzzy matching Campaign Names or Product SKUs.
+4. Component Integration & Recalculation
+
+Performance Grid: Update the grid to consume the global filter state. Apply the filters to the dataset before rendering the table rows.
+Portfolio KPIs: Ensure the rollup queries that feed the top KPI cards (like Blended ROAS and True Profit) dynamically recalculate based only on the filtered dataset. If the user filters for a specific campaign, the "Ad Spend" and "Est. Revenue" tiles must update to reflect only that campaign's totals.
+Cross-Platform Alignment: Ensure that filtering by a Shopify SKU automatically filters the connected Google and Meta campaigns in the grid that are advertising that specific SKU.
+Output: Provide the React code for the useDashboardFilters hook, the AdvancedFilterBar UI component, and show how the PerformanceGrid is updated to consume this new global state.
+

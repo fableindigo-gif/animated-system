@@ -1,0 +1,45 @@
+-- Migration: composite partial B-tree index on adk_sessions for fast combined queries
+--
+-- Problem
+-- -------
+-- The conversation search feature can apply up to four simultaneous filters:
+--   1. Equality on app_name + user_id         (always present)
+--   2. archived_at IS NULL                    (default — hide archived rows)
+--   3. updated_at range (today / week / older) (date-range filter)
+--   4. events::text ILIKE '%<query>%'          (text search via GIN trigram)
+--
+-- The existing GIN trigram index (0001) accelerates #4 in isolation but, when
+-- combined with #1–#3, the planner may choose a sequential scan or a costly
+-- multi-index bitmap-AND over a large row set before trigram filtering.
+--
+-- Solution
+-- --------
+-- A composite B-tree index on (app_name, user_id, updated_at DESC) with a
+-- partial predicate of WHERE archived_at IS NULL gives the planner a compact,
+-- pre-filtered index it can seek into by (app_name, user_id) and then range-
+-- scan by updated_at.  The planner combines this with the GIN trigram index
+-- using BitmapAnd to resolve combined queries efficiently:
+--   Step 1 — partial B-tree: yield a small bitmap of sessions for this
+--             user/app within the requested date window (archived rows excluded)
+--   Step 2 — GIN trigram:    yield a bitmap of sessions whose events text
+--             matches the search string
+--   Step 3 — BitmapAnd:      intersect → only sessions that satisfy both
+--
+-- The partial predicate (archived_at IS NULL) also halves index size in
+-- deployments where users archive old conversations over time, so maintenance
+-- overhead stays low.
+--
+-- Expected outcome
+-- ----------------
+-- EXPLAIN ANALYZE on "text search + date range + user" queries should show
+-- "Bitmap Index Scan on adk_sessions_app_user_updated_active_idx" combined
+-- with "Bitmap Index Scan on adk_sessions_events_trgm_idx" instead of a Seq
+-- Scan, keeping p99 latency under 150 ms for 5 000+ sessions per user.
+--
+-- Safety
+-- ------
+-- IF NOT EXISTS makes this idempotent. No data is modified.
+
+CREATE INDEX IF NOT EXISTS adk_sessions_app_user_updated_active_idx
+  ON adk_sessions (app_name, user_id, updated_at DESC)
+  WHERE archived_at IS NULL;

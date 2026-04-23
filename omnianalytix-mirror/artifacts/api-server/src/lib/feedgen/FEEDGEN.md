@@ -1,0 +1,145 @@
+# FeedGen — AI Title & Description Rewrites
+
+OmniAnalytix's port of Google's [FeedGen](https://github.com/google-marketing-solutions/feedgen) for the
+Merchant Center title + description rewriting workflow. Runs entirely in TypeScript on Vertex AI
+(`gemini-2.5-pro`) and feeds results through the existing Shoptimizer write-back queue so that every
+mutation against Merchant Center is captured by the same approval log used by Quality Fixes.
+
+## Architecture
+
+```
+┌────────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
+│ feedgen-runner.ts  │───▶│ lib/feedgen/service  │───▶│  Vertex AI (Gemini) │
+│ (cron + targeted)  │    │   prompts + JSON     │    │  gemini-2.5-pro     │
+└────────┬───────────┘    └──────────┬───────────┘    └─────────────────────┘
+         │                           │
+         ▼                           ▼
+┌────────────────────────────────────────────────┐
+│  product_feedgen_rewrites (status lifecycle)   │
+│  pending → approved → applied (or rejected/    │
+│  failed)                                       │
+└────────┬───────────────────────────────────────┘
+         │ POST /rewrites/approve
+         ▼
+┌────────────────────────────────────────────────┐
+│  proposed_tasks (Shoptimizer write-back queue) │
+│  Same approval UI + audit trail as Quality     │
+│  Fixes.                                        │
+└────────────────────────────────────────────────┘
+```
+
+## Files
+
+| Path | Purpose |
+| ---- | ------- |
+| `lib/db/src/schema/feedgen-rewrites.ts` | Drizzle schema for `product_feedgen_rewrites`. Tenant-scoped, status-tracked. |
+| `artifacts/api-server/src/lib/feedgen/prompts.ts` | Ports the upstream FeedGen system + few-shot prompts; ships a JSON validator that enforces the hard rules. |
+| `artifacts/api-server/src/lib/feedgen/service.ts` | Vertex AI wrapper. `generateRewrite` + `generateRewriteBatch` (concurrency 4). |
+| `artifacts/api-server/src/workers/feedgen-runner.ts` | Worker: underperformer selection, batch generation, upsert with `status='approved'` guard. Cron interval = 6h. |
+| `artifacts/api-server/src/routes/feed-enrichment/feedgen.ts` | REST routes mounted at `/api/feed-enrichment/feedgen/*`. |
+| `artifacts/api-server/src/lib/adk/platform-tools.ts` (`generateFeedRewritesTool`) | ADK FunctionTool used by `gap-finder` agent. |
+| `artifacts/ecom-agent/src/pages/feed-enrichment.tsx` (`FeedgenView`) | Frontend tab — side-by-side diff + bulk approve. |
+
+## Hard rules enforced by the validator
+
+The validator in `prompts.ts` **rejects** (returns `{ok: false}`, never just
+deducts score) any candidate that fails any of these:
+
+1. `title` is non-empty and ≤ 150 characters (Merchant Center hard limit).
+2. `description` is non-empty and ≤ 5000 characters.
+3. **No promotional language** — anything matching `buy now`, `best price`,
+   `free shipping`, `limited offer`, `limited time`, `sale`, `% off`, `$ off`,
+   `discount`, `guaranteed`, `100%`, `act now`, or `click here` is a hard reject.
+4. **No emojis or pictographic characters** anywhere in title or description.
+5. `qualityScore` is a number 0–100.
+6. `citedAttributes` is a non-empty list **and** every attribute it cites must
+   actually exist (and be non-empty) on the source product. This is what
+   prevents Gemini from "citing" attributes it actually fabricated.
+
+A rejected candidate is stored with `status='failed'`, `errorCode='validation_failed'`, and the reason
+in `errorMessage` so it shows up in the **Failed** tab for the operator to inspect — it is never
+passed to the approval queue.
+
+## Underperformer selection
+
+`runFeedgenScan({ mode })` accepts two strategies:
+
+- **`underperformer` (default)** — joins `warehouse_shopify_products` to the
+  per-tenant `v_poas_by_sku` view (the canonical ROAS surface, hydrated from
+  Shopping Insider / GAARF ad data) on `(tenant_id, sku)`, filters to SKUs
+  with non-zero ad spend, and ranks them by:
+  1. `gross_roas ASC NULLS LAST` — the SKUs leaking the most ad budget per
+     dollar of revenue go first,
+  2. `total_ad_spend DESC` — tie-breaker so the loudest bleeders win when
+     ROAS is identical (or both zero).
+- **`stale`** — fallback for tenants without ROAS data (e.g. brand-new
+  workspace before the first GAARF sync, or Shopping Insider not wired up).
+  Picks SKUs with no rewrite, ordered by `price DESC`. The runner auto-falls
+  back to this mode if `v_poas_by_sku` returns zero rows for the tenant.
+
+Both modes:
+- Are tenant-scoped via `tenantId`.
+- Skip rows already in `approved` / `applied` / `rejected` / recently-`pending`.
+- Are capped at `maxProducts` (default 10 from the ADK tool, 25 from the cron).
+
+## Status lifecycle
+
+```
+pending  ─▶ approved  ─▶ applied
+  │           │
+  │           └─▶ failed (Shoptimizer write-back error)
+  ├─▶ rejected (operator dismissed)
+  └─▶ failed   (Vertex error / validator rejection)
+```
+
+`approved` rows are *not* re-generated by the cron (`setWhere` guards the upsert) so an operator can
+queue 50 rewrites at 9am, walk away, and trust that the cron won't overwrite them at 3pm.
+
+## REST API
+
+All routes are tenant-scoped via `resolveEnrichmentContext(req)`.
+
+| Method | Path | Body | Returns |
+| ------ | ---- | ---- | ------- |
+| `GET`  | `/api/feed-enrichment/feedgen/rewrites?status=pending&page=1&limit=50` | — | `{ page, limit, total, rewrites[] }` |
+| `GET`  | `/api/feed-enrichment/feedgen/rewrites/coverage` | — | `{ totalProducts, pending, approved, applied, rejected, failed }` |
+| `POST` | `/api/feed-enrichment/feedgen/rewrites/run` | `{ maxProducts?: number, mode?: "underperformer" \| "stale" }` | `{ scanned, generated, failed }` |
+| `POST` | `/api/feed-enrichment/feedgen/rewrites/run-targeted` | `{ productIds: string[] }` | `{ scanned, generated, failed }` |
+| `POST` | `/api/feed-enrichment/feedgen/rewrites/approve` | `{ rewriteIds: string[] }` | `{ approved, tasks: [{rewriteId, taskId, status}] }` |
+| `POST` | `/api/feed-enrichment/feedgen/rewrites/:id/reject` | — | `{ rejected: true, id }` |
+
+## ADK tool
+
+`generate_feed_rewrites` is registered on the `gap-finder` agent. The Gemini orchestrator picks it up
+when the user asks things like:
+
+- *"Rewrite the bottom 10 SKUs by ROAS."*
+- *"Fix the title for SKU `BLU-OXFORD-M`."*
+- *"Improve our feed copy for the slow-moving products."*
+
+The tool always returns the per-product breakdown — it never auto-approves. Approval requires the
+operator to click through the UI (or call `/approve` directly).
+
+## Environment variables
+
+| Var | Default | Purpose |
+| --- | ------- | ------- |
+| `FEEDGEN_CRON_ENABLED` | unset (off) | Set to `1` to start the 6-hour cron in `index.ts`. Off by default in dev to save Vertex quota. |
+| `VERTEX_AI_SERVICE_ACCOUNT_JSON` | required | Service account JSON used by `service.ts`. Same secret as the rest of the platform. |
+| `VERTEX_PROJECT_ID` / `VERTEX_LOCATION` | inherited | Resolved through the existing Vertex client. |
+
+## Tuning
+
+- **Temperature** lives in `service.ts` (`temperature: 0.4`). Lower if rewrites drift; raise if they're
+  too repetitive. Don't go above 0.7 — copy starts hallucinating attributes.
+- **Concurrency** is hard-capped at 4 in `generateRewriteBatch`. Vertex `gemini-2.5-pro` quota is
+  the bottleneck; raising this without a quota bump triggers 429s.
+- **Quality score threshold** is *not* enforced — operators see the score and decide. If we ever
+  want to auto-reject anything below e.g. 60, gate it in the runner before insert.
+
+## Future work
+
+- Migrate the Drizzle `setWhere` (deprecated) to the new `targetWhere`/`setWhere` split when we
+  upgrade Drizzle.
+- Add a `feedgen_runs` audit table (per-run scanned/generated/failed/cost) so the dashboard can chart
+  Vertex spend against approval rates.

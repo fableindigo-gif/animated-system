@@ -1,0 +1,33 @@
+name: omnianalytix
+version: '1.0.0'
+config-version: 2
+
+# Single profile name; resolved against ./profiles.yml at the project root.
+profile: omnianalytix
+
+# Where dbt finds each kind of file.
+model-paths:    ["models"]
+analysis-paths: ["analyses"]
+test-paths:     ["tests"]
+seed-paths:     ["seeds"]
+macro-paths:    ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Default materialization conventions:
+#   staging  → views   (cheap, always-fresh, light alias layer over warehouse_*)
+#   marts    → tables  (materialised; agents and dashboards read from these)
+# Schema is suffixed onto the connection's default schema (`public`) so the
+# real, agent-readable objects land in `public_analytics_*`. The existing
+# `public.v_*` views from schema.sql are left untouched.
+models:
+  omnianalytix:
+    staging:
+      +materialized: view
+      +schema: analytics_stg
+    marts:
+      +materialized: table
+      +schema: analytics

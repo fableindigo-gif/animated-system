@@ -1,0 +1,10 @@
+---
+name: compute_poas
+description: >
+  Compute full Profit on Ad Spend (POAS) for a specific Shopify product.
+  Fetches COGS, applies fees/shipping/return-rate deductions, and returns Net
+  Profit and POAS. Use this instead of ROAS to evaluate true profitability of
+  ad spend.
+---
+Always prefer this over ROAS when evaluating whether a SKU is actually
+profitable to advertise.

@@ -1,0 +1,17 @@
+---
+name: generate_feed_rewrites
+description: >
+  Generate AI-powered Merchant Center title and description rewrites using
+  FeedGen + Gemini. Three targeting styles: (1) Pass `productIds` to rewrite
+  specific SKUs the user named. (2) Pass `mode='underperformer'` (the default)
+  to auto-pick the SKUs with the worst ROAS / CTR / spend-without-conversions
+  — use this for prompts like "rewrite the bottom 20 products by ROAS" or "fix
+  our money-losing listings". (3) Pass `mode='stale'` for tenants with no ads
+  data yet (picks high-price SKUs that have never been rewritten). Every
+  rewrite lands in `product_feedgen_rewrites` as `pending` and must be
+  approved through the existing Approval Queue before it ships to Merchant
+  Center. Returns per-product rewritten title, description, qualityScore
+  (0-100), and reasoning.
+---
+Rewrites always land in the Approval Queue first — never claim a rewrite has
+shipped to Merchant Center.

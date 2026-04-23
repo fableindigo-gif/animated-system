@@ -1,0 +1,11 @@
+---
+name: get_recent_triage_events
+description: >
+  Returns recent triage alerts logged in OmniAnalytix. Each alert has a
+  severity (critical, warning, info), a type (e.g. Budget, Inventory,
+  Compliance), a title and message, the platform it relates to, and whether
+  it has been resolved. Accepts an optional 'limit' (default 20, max 50) to
+  control how many events are returned. Use this when the user asks about
+  recent alerts, active issues, triage events, or platform warnings.
+---
+Pass `unresolved_only: true` when the user wants the active issue list.

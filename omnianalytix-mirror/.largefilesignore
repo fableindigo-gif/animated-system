@@ -1,0 +1,13 @@
+# Files/paths the large-file scanner should ignore.
+# One path per line. Lines starting with # are comments.
+# Trailing slash to match a directory and everything under it.
+#
+# Only add an entry after manually verifying the file genuinely belongs in the
+# repo. For very large assets, prefer Git LFS or external storage.
+# See docs/runbooks/secret-scanning.md for the policy.
+
+# Pre-existing landing-page screenshots referenced by marketing assets.
+screenshots/
+
+# Skill bundle assets shipped with .agents/ tooling.
+.agents/

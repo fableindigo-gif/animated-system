@@ -1,0 +1,163 @@
+# Secret & Risky-File Scanning
+
+Two layers of protection keep credentials — and other unwanted artifacts —
+out of the repo:
+
+1. **Local pre-commit hook** (`.githooks/pre-commit`)
+   Runs `scripts/scan-secrets.mjs --staged` and
+   `scripts/scan-large-files.mjs --staged` against every staged change. A hit
+   blocks the commit before it is even created.
+
+2. **CI job** (`.github/workflows/ci.yml` → `secret-scan`)
+   Runs [gitleaks](https://github.com/gitleaks/gitleaks) on every push and pull
+   request. A finding fails the build, which blocks deployment.
+
+Both layers are intentional: the hook is fast feedback, CI is the enforcement
+gate that no developer can skip.
+
+## How the local hook gets installed
+
+`pnpm install` runs the `prepare` script in the root `package.json`, which
+points git at our hooks directory:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+After cloning, run `pnpm install` once and the hook is active.
+
+## What the scanner blocks
+
+`scripts/scan-secrets.mjs` flags three classes of finding:
+
+- **Blocked filenames** — anything that looks like a credential file:
+  `.env`, `.env.local`, `service-account*.json`, `credentials.json`,
+  `id_rsa`, `*.pem`, `*.p12`, `*.pfx`, `*.keystore`.
+  (`.env.example`, `.env.sample`, `.env.template` are explicitly allowed.)
+- **High-confidence content patterns** — matchers that virtually never appear
+  in legitimate code: PEM private-key blocks, `GOCSPX-…`, `AIza…`,
+  `shpss_/shpat_/shpca_/shpck_…`, `AKIA/ASIA…`, GitHub PATs (`ghp_`, `ghs_`,
+  `gho_`, `ghu_`, `ghr_`, `github_pat_…`), Slack tokens (`xox?-…`) and
+  webhooks, Stripe live keys (`sk_live_`, `rk_live_`), OpenAI / Anthropic
+  keys, SendGrid (`SG.…`), Twilio (`SK…`), and JWTs (`eyJ…`).
+- **Generic high-entropy strings** — quoted tokens that look random enough
+  to be a credential. Tuned for precision over recall:
+  - candidate must be inside `'…'`, `"…"`, or `` `…` ``
+  - must be 32+ chars from `[A-Za-z0-9+=_\-]` (no `/`, `.`, `:`, or spaces —
+    rules out URLs, mime types, dotted identifiers)
+  - must contain both a letter and a digit (rules out kebab/snake names)
+  - Shannon entropy ≥ 4.5 bits/char (well above natural-language ≈ 4.0)
+  - line must look like an assignment (`=`, `:`, `=>`) or carry one of the
+    keywords `secret`, `token`, `password`, `key`, `auth`, `credential`,
+    `bearer`, `private_key`
+  - skips lockfile integrity hashes (`sha512-…`), pure hex up to 64 chars
+    (git SHAs / sha256 digests), and pure decimal tokens
+
+The detector is validated by `scripts/test-scan-secrets.mjs`, which runs
+against fixture files of known credentials (must all flag) and known
+look-alikes (must all pass). Run it locally with `pnpm test:scan-secrets`.
+
+## Suppressing a verified false positive
+
+**Always verify first.** Open the flagged file and confirm the match is not a
+real credential. If it is real, rotate it immediately and follow
+[`secret-rotation-and-history-rewrite.md`](./secret-rotation-and-history-rewrite.md).
+
+Once you have confirmed the match is benign, choose the narrowest suppression
+that works:
+
+### 1. Single-line suppression (preferred)
+
+Add the marker `secret-scan-ok` anywhere on the same line. This works for
+both pattern-based and entropy-based hits:
+
+```ts
+const exampleToken = "ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; // secret-scan-ok — fixture in test
+const exampleHash  = "Tk9rZTlHJ4a3oQpA9zXmL2rWqB7sYhVcN0eFt5dUxIw"; // secret-scan-ok — checksum, not a credential
+```
+
+### 2. Whole-file suppression
+
+Add the path to `.secretsignore` (one path per line, `#` for comments):
+
+```
+# Test fixtures contain intentionally-fake credentials
+artifacts/api-server/test/fixtures/fake-creds.json
+```
+
+For a directory, end the entry with a trailing slash:
+
+```
+test/__fixtures__/secrets/
+```
+
+### 3. Suppressing a CI (gitleaks) finding
+
+If gitleaks flags a path the local scanner is fine with, add an entry to
+`.gitleaks.toml` under `[allowlist]`:
+
+```toml
+[allowlist]
+description = "Test fixtures with intentionally-fake credentials"
+paths = [
+  '''artifacts/api-server/test/fixtures/fake-creds\.json''',
+]
+```
+
+Both suppression files (`.secretsignore` and `.gitleaks.toml`) live at the
+repo root and are reviewed in PR like any other code change.
+
+## Large files & risky paths
+
+`scripts/scan-large-files.mjs` is a sibling guard that closes the remaining
+"oops, I didn't mean to commit that" footguns the secret scanner doesn't
+cover. The pre-commit hook runs it after the secret scan.
+
+It blocks three classes of staged change:
+
+- **Files larger than 5 MB.** Source repos shouldn't carry binary blobs;
+  use Git LFS or external storage instead. The threshold lives at the top
+  of `scripts/scan-large-files.mjs` (`MAX_FILE_BYTES`).
+- **Build outputs.** Anything under `dist/`, `build/`, `coverage/`,
+  `out-tsc/`, `.expo/`, `.expo-shared/`, `.next/`, `.turbo/`, `.nx/cache/`
+  (at the repo root or nested inside a workspace package), and any
+  `*.tsbuildinfo` file. These are regenerated by the build and should
+  never be checked in.
+- **Binary media outside allowed dirs.** Screenshots and recordings
+  (`.png/.jpg/.gif/.webp/.bmp/.tiff/.heic/.mp4/.mov/.webm/.mkv/.avi/.mp3/.wav/.m4a/.ogg`)
+  are blocked unless they live under `attached_assets/` (gitignored
+  scratch), `artifacts/` (legitimate per-app assets), or `docs/` (runbook
+  screenshots). This is the most common chat-paste accident.
+
+### Suppressing a large-file finding
+
+Add the path to `.largefilesignore` (one path per line, `#` for comments,
+trailing slash for a directory):
+
+```
+# Genuinely large asset that must live in source control.
+artifacts/web/public/hero.mp4
+```
+
+Only add an entry after verifying the file genuinely belongs in the repo.
+For files that genuinely need to be tracked but are very large, reach for
+Git LFS instead.
+
+There is no inline `--no-verify`-style escape for individual lines — the
+guard is path-based by nature. In a true emergency, `git commit --no-verify`
+still works, but CI should be wired to re-run the same scanner so the
+bypass cannot reach `main` unreviewed.
+
+Run it manually:
+
+```bash
+pnpm scan:large-files          # scan everything tracked
+pnpm scan:large-files:staged   # scan only what's staged
+pnpm test:scan-large-files     # run the scanner's own test suite
+```
+
+## Bypassing in an emergency
+
+`git commit --no-verify` skips the local hook, but **CI will still fail**, so
+you cannot push secrets through this way. Do not use `--no-verify` to commit
+secrets — rotate the credential and try again.

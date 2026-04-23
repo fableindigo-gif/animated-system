@@ -1,0 +1,28 @@
+{
+  "$comment": [
+    "Allowed (pre-existing) WCAG 2.1 AA violations per audited surface.",
+    "Format: { '<route>': { '<axe-rule-id>': <max-allowed-node-count> } }.",
+    "",
+    "The a11y guard (e2e/a11y.spec.ts) compares the live axe results to",
+    "this baseline. A surface fails if:",
+    "  - axe reports a rule that is NOT listed in the surface's baseline, OR",
+    "  - axe reports MORE nodes for a baselined rule than the count here.",
+    "",
+    "Fewer nodes = improvement, no failure (developers should drop the",
+    "count or remove the entry when the underlying issue is fixed).",
+    "",
+    "Captured: 2026-04-21 against the post-task-#103 codebase. See",
+    "audit/PHASE_0_SECTION_G.md for surface→token mapping and the open",
+    "follow-up tasks tracking each remaining violation.",
+    "",
+    "2026-04-22: task-#196 fixed all 49 violations on /ecom-agent/:",
+    "  - 22 color-contrast: replaced text-[#737686] with text-muted-foreground",
+    "  - 26 svg-img-alt: added aria-hidden=true to all decorative react-icons SVGs",
+    "  - 1 select-name: linked Monthly Ad Spend select via htmlFor/id"
+  ],
+  "/ecom-agent/": {},
+  "/ecom-agent/client-brief": {},
+  "/ecom-agent/feed-enrichment": {},
+  "/ecom-agent/connections": {},
+  "/ecom-agent/settings": {}
+}

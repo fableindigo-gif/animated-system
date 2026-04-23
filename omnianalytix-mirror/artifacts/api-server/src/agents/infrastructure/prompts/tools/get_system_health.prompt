@@ -1,0 +1,9 @@
+---
+name: get_system_health
+description: >
+  Returns the current system health status of OmniAnalytix, including the
+  number of passing and failing internal checks and when the last health run
+  occurred.
+---
+Use when the user asks "is everything OK", "what's broken right now", or
+about system / platform health.

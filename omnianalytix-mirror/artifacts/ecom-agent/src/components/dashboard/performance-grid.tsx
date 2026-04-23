@@ -40,9 +40,9 @@ import { WindowEmptyBanner } from "./window-empty-banner";
 const BASE = import.meta.env.BASE_URL ?? "/";
 const API_BASE = BASE.endsWith("/") ? BASE : BASE + "/";
 
-// Task #149/#153: portfolio fallback for the Health badge. Tenants configure
-// their own default in Settings → Economics, and individual campaigns can
-// override that value; we only land on this constant when neither is set.
+// Portfolio fallback for the Health badge. Tenants configure their own default
+// in Settings → Economics, and individual campaigns can override that value;
+// we only land on this constant when neither is set.
 const DEFAULT_TARGET_ROAS = 4.0;
 
 function healthScore(roas: number | null | undefined, targetRoas: number): number | null {

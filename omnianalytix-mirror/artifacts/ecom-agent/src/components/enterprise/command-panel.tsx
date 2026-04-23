@@ -374,9 +374,8 @@ function ConversationsList({
           if (activeConvId === id) onSelectConv(null);
           setPendingDeleteId(null);
         },
-        onError: (err) => {
+        onError: () => {
           setPendingDeleteId(null);
-          console.error("[CommandPanel] Failed to delete conversation:", err);
         },
       },
     );

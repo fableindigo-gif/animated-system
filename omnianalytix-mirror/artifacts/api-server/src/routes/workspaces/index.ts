@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { randomBytes } from "crypto";
-import { db, organizations, workspaces, teamMembers } from "@workspace/db";
-import { eq, sql, isNull, and } from "drizzle-orm";
+import { db, organizations, workspaces, teamMembers, liveTriageAlerts } from "@workspace/db";
+import { eq, sql, isNull, and, inArray } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { getAlerts } from "../../lib/alert-store";
 import { requireRole, getOrgId } from "../../middleware/rbac";
@@ -67,13 +67,54 @@ router.get("/", async (req, res) => {
       .where(whereClause)
       .orderBy(workspaces.createdAt);
 
-    const programmaticAlerts = getAlerts();
-    const criticalCount = programmaticAlerts.filter((a) => a.severity === "critical").length;
+    // Per-workspace aggregation of unresolved critical alerts. We pull from two
+    // sources and merge:
+    //   1. The persistent `live_triage_alerts` table — the durable record of
+    //      every infra/triage alert, keyed by workspace slug.
+    //   2. The in-memory `getAlerts()` feed — short-lived programmatic alerts
+    //      raised by background workers that don't carry a workspace tag, so
+    //      we attribute them to the "default" workspace as before.
+    const slugs = rows.map((ws) => ws.slug);
+    const dbCounts: Record<string, number> = {};
+    if (slugs.length > 0) {
+      try {
+        const counts = await db
+          .select({
+            slug: liveTriageAlerts.workspaceId,
+            n: sql<number>`count(*)::int`,
+          })
+          .from(liveTriageAlerts)
+          .where(
+            and(
+              inArray(liveTriageAlerts.workspaceId, slugs),
+              eq(liveTriageAlerts.severity, "critical"),
+              eq(liveTriageAlerts.resolvedStatus, false),
+            ),
+          )
+          .groupBy(liveTriageAlerts.workspaceId);
+        for (const row of counts) {
+          dbCounts[row.slug] = Number(row.n) || 0;
+        }
+      } catch (err) {
+        // Don't 500 the workspace listing if alert aggregation fails — degrade
+        // to "no critical alerts" rather than blocking the dashboard.
+        logger.warn({ err }, "GET /workspaces alert aggregation failed");
+      }
+    }
 
-    const enriched = rows.map((ws) => ({
-      ...ws,
-      criticalAlertCount: ws.slug === "default" ? criticalCount : 0,
-    }));
+    const programmaticAlerts = getAlerts();
+    const programmaticCriticalCount = programmaticAlerts.filter(
+      (a) => a.severity === "critical",
+    ).length;
+
+    const enriched = rows.map((ws) => {
+      const persistent = dbCounts[ws.slug] ?? 0;
+      const inMemory = ws.slug === "default" ? programmaticCriticalCount : 0;
+      return {
+        ...ws,
+        criticalAlertCount: persistent + inMemory,
+      };
+    });
 
     res.json(enriched);
   } catch (err) {

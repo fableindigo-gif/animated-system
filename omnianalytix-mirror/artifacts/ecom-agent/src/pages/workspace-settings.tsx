@@ -181,7 +181,7 @@ function AccountTab() {
       <div className="py-8 border-b border-gray-100 flex items-center gap-5">
         <div className="w-16 h-16 rounded-full bg-[#1a73e8] text-white flex items-center justify-center text-xl font-bold overflow-hidden shrink-0">
           {user.avatar
-            ? <img src={user.avatar} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ? <img src={user.avatar} alt={`${user.name || user.email || "Account"} avatar`} loading="lazy" decoding="async" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             : getInitials(user.name)}
         </div>
         <div className="flex-1 min-w-0">

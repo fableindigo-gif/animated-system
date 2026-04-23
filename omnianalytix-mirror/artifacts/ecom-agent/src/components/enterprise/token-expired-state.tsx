@@ -2,7 +2,11 @@ import { AlertTriangle, RefreshCw, ExternalLink } from "lucide-react";
 import { SiShopify, SiGoogle, SiMeta } from "react-icons/si";
 import { cn } from "@/lib/utils";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+// Strip trailing slash so we can safely concatenate `${BASE}/connections` —
+// when the app is mounted at the root path BASE_URL is "/", which would
+// otherwise produce a "//connections" double-slash that breaks router matching.
+const RAW_BASE = import.meta.env.BASE_URL ?? "/";
+const BASE = RAW_BASE === "/" ? "" : RAW_BASE.replace(/\/$/, "");
 
 // Maps platform ID → re-auth URL or path
 const REAUTH_MAP: Record<string, { label: string; href: string; icon: React.ReactNode; color: string; bg: string; border: string }> = {

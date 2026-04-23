@@ -418,6 +418,13 @@
   --color-status-critical-fg:  #881337;
   --color-status-critical-border: #fda4af;
   --color-status-critical-dot: #f43f5e;
+
+  /* Brand + soft-status palette extracted from previously-hardcoded hex values. */
+  --color-brand-woocommerce:        #7F54B3;
+  --color-brand-woocommerce-hover:  #6b459a;
+  --color-brand-google:             #4285F4;
+  --color-status-error-soft-bg:     #fecdd3;
+  --color-status-info-soft-bg:      #dbeafe;
 }
 
 /* ── Skeleton shimmer loaders ────────────────────────────────────────────────

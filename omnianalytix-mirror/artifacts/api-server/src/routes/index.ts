@@ -91,7 +91,7 @@ function fullGuard(minRole: Role) {
 
 router.use(healthRouter);
 
-router.get("/system-health", async (_req, res) => {
+router.get("/system-health", requireAuth, async (_req, res) => {
   const { results, lastRunAt } = getLastHealthResults();
   const scanner = getQualityFixesScannerStatus();
   const pendingScanCount = await getPendingQualityFixesCount();

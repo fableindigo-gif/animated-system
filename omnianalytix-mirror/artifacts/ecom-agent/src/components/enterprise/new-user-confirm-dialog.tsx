@@ -74,12 +74,12 @@ export function NewUserConfirmDialog({
               {picture ? (
                 <img
                   src={picture}
-                  alt=""
+                  alt={`${name || email} profile picture`}
                   className="w-14 h-14 rounded-full object-cover"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <UserPlus className="w-7 h-7 text-accent-blue" />
+                <UserPlus className="w-7 h-7 text-accent-blue" aria-hidden="true" />
               )}
             </div>
 
@@ -96,7 +96,7 @@ export function NewUserConfirmDialog({
               {picture ? (
                 <img
                   src={picture}
-                  alt=""
+                  alt={`${displayName} profile picture`}
                   className="w-10 h-10 rounded-full object-cover border border-outline-variant/15"
                   referrerPolicy="no-referrer"
                 />

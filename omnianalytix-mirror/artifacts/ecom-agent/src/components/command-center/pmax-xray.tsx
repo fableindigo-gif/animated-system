@@ -141,8 +141,8 @@ export function PMaxXRay({ data }: PMaxXRayProps) {
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  {pieData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} stroke="transparent" />
+                  {pieData.map((entry) => (
+                    <Cell key={entry.name ?? entry.color} fill={entry.color} stroke="transparent" />
                   ))}
                 </Pie>
                 <Tooltip content={<PieAuditTooltip />} />

@@ -132,9 +132,27 @@ function Router() {
           )}
         </Route>
         <Route path="/privacy-policy" component={PrivacyPolicy} />
-        <Route path="/agency/command-center" component={AgencyCommandCenter} />
-        <Route path="/forensic" component={Forensic} />
-        <Route path="/tasks" component={TaskBoard} />
+        <Route path="/agency/command-center">
+          {() => (
+            <ProtectedRoute allowedRoles={["super_admin", "admin", "agency_owner", "manager", "analyst", "it", "member"]}>
+              <AgencyCommandCenter />
+            </ProtectedRoute>
+          )}
+        </Route>
+        <Route path="/forensic">
+          {() => (
+            <ProtectedRoute allowedRoles={["super_admin", "admin", "agency_owner", "manager", "analyst", "it", "member"]}>
+              <Forensic />
+            </ProtectedRoute>
+          )}
+        </Route>
+        <Route path="/tasks">
+          {() => (
+            <ProtectedRoute allowedRoles={["super_admin", "admin", "agency_owner", "manager", "analyst", "it", "member"]}>
+              <TaskBoard />
+            </ProtectedRoute>
+          )}
+        </Route>
         <Route path="/client-brief" component={ExecutiveBrief} />
         <Route path="/resolution-base" component={ResolutionBase} />
         <Route path="/capabilities" component={CapabilitiesHub} />

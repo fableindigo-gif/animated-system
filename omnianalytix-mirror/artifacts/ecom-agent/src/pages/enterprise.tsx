@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { Send, Calendar, ArrowRight, CheckCircle2, X, Loader2 } from "lucide-react";
 import {
   SiGoogleads,
@@ -117,8 +118,56 @@ export default function EnterprisePage({ onLeadCapture }: EnterprisePageProps) {
   const [scrolled, setScrolled] = useState(false);
   const [activeIntegration, setActiveIntegration] = useState(0);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: "", email: "", company: "", employees: "", message: "" });
   const [contactSubmitted, setContactSubmitted] = useState(false);
+
+  type EnterpriseContactForm = {
+    name: string;
+    email: string;
+    company: string;
+    employees: string;
+    message: string;
+  };
+  const ENTERPRISE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const enterpriseContactForm = useForm<EnterpriseContactForm>({
+    mode: "onBlur",
+    defaultValues: { name: "", email: "", company: "", employees: "", message: "" },
+  });
+  const {
+    register: registerContact,
+    handleSubmit: handleContactSubmit,
+    reset: resetContactForm,
+    formState: { errors: contactErrors, isSubmitting: contactSubmitting },
+  } = enterpriseContactForm;
+
+  // Reset the form whenever the modal is closed so the next visit starts clean.
+  useEffect(() => {
+    if (!showContactModal) {
+      setContactSubmitted(false);
+      resetContactForm({ name: "", email: "", company: "", employees: "", message: "" });
+    }
+  }, [showContactModal, resetContactForm]);
+
+  const onContactSubmit = handleContactSubmit(async (values) => {
+    try {
+      const apiBase = BASE.endsWith("/") ? BASE : BASE + "/";
+      await fetch(`${apiBase}api/leads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "enterprise",
+          name: values.name.trim(),
+          email: values.email.trim(),
+          company: values.company.trim(),
+          employees: values.employees,
+          message: values.message.trim(),
+        }),
+      });
+    } catch {
+      /* still show success UI — the lead is best-effort */
+    }
+    setContactSubmitted(true);
+  });
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
@@ -446,49 +495,113 @@ export default function EnterprisePage({ onLeadCapture }: EnterprisePageProps) {
                 <button onClick={() => setShowContactModal(false)} className="px-6 py-2.5 bg-[#2563EB] text-white rounded-full text-sm font-bold hover:bg-[#1e40af] transition-colors">Done</button>
               </div>
             ) : (
-              <div className="p-5 space-y-3.5">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="enterprise-contact-name" className="block text-xs font-semibold mb-1.5">Full Name *</label>
-                    <input id="enterprise-contact-name" type="text" value={contactForm.name} onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))} placeholder="Jane Smith" className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 placeholder:text-[#737686]/40 transition-all" />
+              <form onSubmit={onContactSubmit} noValidate className="p-5 space-y-3.5">
+                <fieldset disabled={contactSubmitting} className="space-y-3.5 disabled:opacity-95">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="enterprise-contact-name" className="block text-xs font-semibold mb-1.5">Full Name *</label>
+                      <input
+                        id="enterprise-contact-name"
+                        type="text"
+                        autoComplete="name"
+                        placeholder="Jane Smith"
+                        aria-invalid={contactErrors.name ? "true" : "false"}
+                        aria-describedby={contactErrors.name ? "enterprise-contact-name-error" : undefined}
+                        className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 placeholder:text-[#737686]/40 transition-all"
+                        {...registerContact("name", {
+                          required: "Please tell us your name.",
+                          minLength: { value: 2, message: "Name must be at least 2 characters." },
+                        })}
+                      />
+                      {contactErrors.name && (
+                        <p id="enterprise-contact-name-error" role="alert" className="mt-1 text-xs text-rose-600 font-medium">{contactErrors.name.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor="enterprise-contact-company" className="block text-xs font-semibold mb-1.5">Company *</label>
+                      <input
+                        id="enterprise-contact-company"
+                        type="text"
+                        autoComplete="organization"
+                        placeholder="Acme Agency"
+                        aria-invalid={contactErrors.company ? "true" : "false"}
+                        aria-describedby={contactErrors.company ? "enterprise-contact-company-error" : undefined}
+                        className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 placeholder:text-[#737686]/40 transition-all"
+                        {...registerContact("company", {
+                          required: "Company name is required.",
+                          minLength: { value: 2, message: "Company name must be at least 2 characters." },
+                        })}
+                      />
+                      {contactErrors.company && (
+                        <p id="enterprise-contact-company-error" role="alert" className="mt-1 text-xs text-rose-600 font-medium">{contactErrors.company.message}</p>
+                      )}
+                    </div>
                   </div>
                   <div>
-                    <label htmlFor="enterprise-contact-company" className="block text-xs font-semibold mb-1.5">Company *</label>
-                    <input id="enterprise-contact-company" type="text" value={contactForm.company} onChange={(e) => setContactForm((f) => ({ ...f, company: e.target.value }))} placeholder="Acme Agency" className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 placeholder:text-[#737686]/40 transition-all" />
+                    <label htmlFor="enterprise-contact-email" className="block text-xs font-semibold mb-1.5">Work Email *</label>
+                    <input
+                      id="enterprise-contact-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="jane@company.com"
+                      aria-invalid={contactErrors.email ? "true" : "false"}
+                      aria-describedby={contactErrors.email ? "enterprise-contact-email-error" : undefined}
+                      className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 placeholder:text-[#737686]/40 transition-all"
+                      {...registerContact("email", {
+                        required: "Work email is required.",
+                        pattern: { value: ENTERPRISE_EMAIL_PATTERN, message: "Enter a valid work email address." },
+                      })}
+                    />
+                    {contactErrors.email && (
+                      <p id="enterprise-contact-email-error" role="alert" className="mt-1 text-xs text-rose-600 font-medium">{contactErrors.email.message}</p>
+                    )}
                   </div>
-                </div>
-                <div>
-                  <label htmlFor="enterprise-contact-email" className="block text-xs font-semibold mb-1.5">Work Email *</label>
-                  <input id="enterprise-contact-email" type="email" value={contactForm.email} onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))} placeholder="jane@company.com" className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 placeholder:text-[#737686]/40 transition-all" />
-                </div>
-                <div>
-                  <label htmlFor="enterprise-contact-team-size" className="block text-xs font-semibold mb-1.5">Team Size</label>
-                  <select id="enterprise-contact-team-size" value={contactForm.employees} onChange={(e) => setContactForm((f) => ({ ...f, employees: e.target.value }))} className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 text-[#434655] transition-all">
-                    <option value="">Select team size</option>
-                    <option value="1-10">1-10 employees</option>
-                    <option value="11-50">11-50 employees</option>
-                    <option value="51-200">51-200 employees</option>
-                    <option value="200+">200+ employees</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="enterprise-contact-message" className="block text-xs font-semibold mb-1.5">What are you looking to solve? <span className="text-[#737686] font-normal">(optional)</span></label>
-                  <textarea id="enterprise-contact-message" value={contactForm.message} onChange={(e) => setContactForm((f) => ({ ...f, message: e.target.value }))} rows={3} placeholder="e.g., Unified reporting across Google + Meta, replacing manual QBRs..." className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 placeholder:text-[#737686]/40 transition-all resize-none" />
-                </div>
-                <button onClick={async () => {
-                  try {
-                    const apiBase = BASE.endsWith("/") ? BASE : BASE + "/";
-                    await fetch(`${apiBase}api/leads`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ source: "enterprise", ...contactForm }),
-                    });
-                  } catch { /* still show success UI */ }
-                  setContactSubmitted(true);
-                }} disabled={!contactForm.name.trim() || !contactForm.email.trim()} className="w-full py-3.5 bg-[#2563EB] text-white rounded-full text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#1e40af] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-500/15">
-                  <Send className="w-4 h-4" /> Contact Enterprise Sales
+                  <div>
+                    <label htmlFor="enterprise-contact-team-size" className="block text-xs font-semibold mb-1.5">Team Size</label>
+                    <select
+                      id="enterprise-contact-team-size"
+                      className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 text-[#434655] transition-all"
+                      {...registerContact("employees")}
+                    >
+                      <option value="">Select team size</option>
+                      <option value="1-10">1-10 employees</option>
+                      <option value="11-50">11-50 employees</option>
+                      <option value="51-200">51-200 employees</option>
+                      <option value="200+">200+ employees</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="enterprise-contact-message" className="block text-xs font-semibold mb-1.5">
+                      What are you looking to solve? <span className="text-[#737686] font-normal">(optional)</span>
+                    </label>
+                    <textarea
+                      id="enterprise-contact-message"
+                      rows={3}
+                      placeholder="e.g., Unified reporting across Google + Meta, replacing manual QBRs..."
+                      aria-invalid={contactErrors.message ? "true" : "false"}
+                      aria-describedby={contactErrors.message ? "enterprise-contact-message-error" : undefined}
+                      className="w-full bg-white border border-[#e8e8ed] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#2563EB]/40 focus:ring-2 focus:ring-[#2563EB]/10 placeholder:text-[#737686]/40 transition-all resize-none"
+                      {...registerContact("message", {
+                        maxLength: { value: 1000, message: "Please keep your note under 1,000 characters." },
+                      })}
+                    />
+                    {contactErrors.message && (
+                      <p id="enterprise-contact-message-error" role="alert" className="mt-1 text-xs text-rose-600 font-medium">{contactErrors.message.message}</p>
+                    )}
+                  </div>
+                </fieldset>
+                <button
+                  type="submit"
+                  disabled={contactSubmitting}
+                  className="w-full py-3.5 bg-[#2563EB] text-white rounded-full text-sm font-bold flex items-center justify-center gap-2 hover:bg-[#1e40af] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-lg shadow-blue-500/15"
+                >
+                  {contactSubmitting ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Sending…</>
+                  ) : (
+                    <><Send className="w-4 h-4" aria-hidden="true" /> Contact Enterprise Sales</>
+                  )}
                 </button>
-              </div>
+              </form>
             )}
           </div>
         </div>

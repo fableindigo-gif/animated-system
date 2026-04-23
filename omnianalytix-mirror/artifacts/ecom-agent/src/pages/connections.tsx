@@ -22,6 +22,9 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 
 const BASE = import.meta.env.BASE_URL ?? "/";
 const API_BASE = BASE.endsWith("/") ? BASE : BASE + "/";
@@ -154,7 +157,7 @@ function EtlSyncBanner({
       <div className="flex items-center gap-3 mb-3">
         <div className={cn(
           "w-10 h-10 rounded-2xl flex items-center justify-center shrink-0",
-          isDone ? "bg-emerald-100" : isError ? "bg-[#fecdd3]" : "bg-[#dbeafe]",
+          isDone ? "bg-emerald-100" : isError ? "bg-[var(--color-status-error-soft-bg)]" : "bg-[var(--color-status-info-soft-bg)]",
         )}>
           <span className={cn(
             "material-symbols-outlined text-xl",
@@ -328,9 +331,8 @@ function WooCommerceModal({
   const [secret, setSecret] = useState("");
   const [error, setError] = useState("");
 
-  if (!open) return null;
-
-  const handleSubmit = () => {
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!url.trim() || !key.trim() || !secret.trim()) {
       setError("All three fields are required.");
       return;
@@ -340,85 +342,106 @@ function WooCommerceModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center sm:p-4">
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl p-8 animate-in fade-in zoom-in-95 duration-200 max-h-[92dvh] sm:max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md p-8">
+        <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-purple-50 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-purple-50 flex items-center justify-center shrink-0">
               <WooCommerceLogo className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-lg text-on-surface">Connect WooCommerce</h3>
+            <div className="text-left">
+              <DialogTitle className="text-lg text-on-surface">Connect WooCommerce</DialogTitle>
+              <DialogDescription className="text-xs text-on-surface-variant mt-1">
+                Enter your WooCommerce REST API credentials. You can find these in WooCommerce → Settings → Advanced → REST API.
+              </DialogDescription>
+            </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-surface-container-low transition-colors">
-            <span className="material-symbols-outlined text-[20px] text-on-surface-variant">close</span>
-          </button>
-        </div>
+        </DialogHeader>
 
-        <p className="text-xs text-on-surface-variant mb-5">Enter your WooCommerce REST API credentials. You can find these in WooCommerce → Settings → Advanced → REST API.</p>
-
-        <div className="space-y-4 mb-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Store URL</label>
+            <label
+              htmlFor="woo-store-url"
+              className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5"
+            >
+              Store URL
+            </label>
             <input
-              className="w-full text-sm border border-outline-variant/15 rounded-2xl bg-surface px-4 py-3 focus:ring-2 focus:ring-[#7F54B3]/20 focus:border-[#7F54B3]/30 outline-none transition-all placeholder:text-on-surface-variant"
+              id="woo-store-url"
+              className="w-full text-sm border border-outline-variant/15 rounded-2xl bg-surface px-4 py-3 focus:ring-2 focus:ring-[var(--color-brand-woocommerce)]/20 focus:border-[var(--color-brand-woocommerce)]/30 outline-none transition-all placeholder:text-on-surface-variant"
               placeholder="https://yourstore.com"
               type="text"
+              autoComplete="url"
               value={url}
               onChange={(e) => { setUrl(e.target.value); setError(""); }}
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Consumer Key</label>
+            <label
+              htmlFor="woo-consumer-key"
+              className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5"
+            >
+              Consumer Key
+            </label>
             <input
-              className="w-full text-sm border border-outline-variant/15 rounded-2xl bg-surface px-4 py-3 focus:ring-2 focus:ring-[#7F54B3]/20 focus:border-[#7F54B3]/30 outline-none transition-all placeholder:text-on-surface-variant font-mono"
+              id="woo-consumer-key"
+              className="w-full text-sm border border-outline-variant/15 rounded-2xl bg-surface px-4 py-3 focus:ring-2 focus:ring-[var(--color-brand-woocommerce)]/20 focus:border-[var(--color-brand-woocommerce)]/30 outline-none transition-all placeholder:text-on-surface-variant font-mono"
               placeholder="ck_..."
               type="password"
+              autoComplete="off"
               value={key}
               onChange={(e) => { setKey(e.target.value); setError(""); }}
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5">Consumer Secret</label>
+            <label
+              htmlFor="woo-consumer-secret"
+              className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1.5"
+            >
+              Consumer Secret
+            </label>
             <input
-              className="w-full text-sm border border-outline-variant/15 rounded-2xl bg-surface px-4 py-3 focus:ring-2 focus:ring-[#7F54B3]/20 focus:border-[#7F54B3]/30 outline-none transition-all placeholder:text-on-surface-variant font-mono"
+              id="woo-consumer-secret"
+              className="w-full text-sm border border-outline-variant/15 rounded-2xl bg-surface px-4 py-3 focus:ring-2 focus:ring-[var(--color-brand-woocommerce)]/20 focus:border-[var(--color-brand-woocommerce)]/30 outline-none transition-all placeholder:text-on-surface-variant font-mono"
               placeholder="cs_..."
               type="password"
+              autoComplete="off"
               value={secret}
               onChange={(e) => { setSecret(e.target.value); setError(""); }}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
             />
           </div>
           {error && (
-            <div className="flex items-center gap-2 text-xs text-error-m3 bg-error-container rounded-2xl px-4 py-2.5">
-              <span className="material-symbols-outlined text-[16px]">error</span>
+            <div role="alert" className="flex items-center gap-2 text-xs text-error-m3 bg-error-container rounded-2xl px-4 py-2.5">
+              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">error</span>
               {error}
             </div>
           )}
-        </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="flex-1 py-3 bg-[#7F54B3] hover:bg-[#6b459a] text-white text-sm font-bold rounded-2xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <>
-                <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
-                Connecting…
-              </>
-            ) : "Connect Store"}
-          </button>
-          <button
-            onClick={onClose}
-            className="px-5 py-3 border border-outline-variant/15 text-sm text-on-surface-variant font-medium rounded-2xl hover:bg-surface transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
+          <DialogFooter className="!mt-6 flex-row gap-3 sm:justify-stretch">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 py-3 bg-[var(--color-brand-woocommerce)] hover:bg-[var(--color-brand-woocommerce-hover)] text-white text-sm font-bold rounded-2xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <span className="material-symbols-outlined text-sm animate-spin" aria-hidden="true">progress_activity</span>
+                  Connecting…
+                </>
+              ) : "Connect Store"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-5 py-3 border border-outline-variant/15 text-sm text-on-surface-variant font-medium rounded-2xl hover:bg-surface transition-colors disabled:opacity-40"
+            >
+              Cancel
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1222,9 +1245,9 @@ export default function Connections() {
                   </button>
                 )}
                 {isGoogleConnected && (gCalConnected || gDriveConnected || gDocsConnected) && (
-                  <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-2xl bg-[#4285F4]/5 border border-[#4285F4]/20">
-                    <span className="material-symbols-outlined text-[#4285F4] text-[16px]">info</span>
-                    <span className="text-[10px] text-[#4285F4]">
+                  <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-2xl bg-[var(--color-brand-google)]/5 border border-[var(--color-brand-google)]/20">
+                    <span className="material-symbols-outlined text-[var(--color-brand-google)] text-[16px]">info</span>
+                    <span className="text-[10px] text-[var(--color-brand-google)]">
                       {[gCalConnected && "Calendar", gDriveConnected && "Drive", gDocsConnected && "Docs"].filter(Boolean).join(" · ")} scope{(([gCalConnected, gDriveConnected, gDocsConnected].filter(Boolean).length > 1) ? "s" : "")} active — extended workspace permissions granted
                     </span>
                   </div>

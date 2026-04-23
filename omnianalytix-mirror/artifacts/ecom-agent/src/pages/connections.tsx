@@ -607,6 +607,41 @@ export default function Connections() {
     setDomainUrl(activeWorkspace?.websiteUrl ?? "");
   }, [activeWorkspace?.websiteUrl]);
 
+  // Welcome-overlay deep-link: scroll to and highlight the integration card
+  // for the goal-relevant platform (?focus=… or sessionStorage fallback).
+  useEffect(() => {
+    if (isLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("focus");
+    const fromStorage = sessionStorage.getItem("omni_first_step_focus");
+    const target = fromUrl || fromStorage;
+    if (!target) return;
+
+    const tryFocus = () => {
+      const el = document.querySelector<HTMLElement>(`[data-focus-platform="${target}"]`);
+      if (!el) return false;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.setAttribute("data-focused", "true");
+      window.setTimeout(() => el.removeAttribute("data-focused"), 3500);
+      return true;
+    };
+
+    let attempts = 0;
+    const id = window.setInterval(() => {
+      attempts += 1;
+      if (tryFocus() || attempts >= 20) {
+        window.clearInterval(id);
+        sessionStorage.removeItem("omni_first_step_focus");
+        if (fromUrl) {
+          params.delete("focus");
+          const qs = params.toString();
+          setLocation(`/connections${qs ? `?${qs}` : ""}`, { replace: true });
+        }
+      }
+    }, 100);
+    return () => window.clearInterval(id);
+  }, [isLoading, setLocation]);
+
   useEffect(() => {
     authFetch(`${API_BASE}api/byodb/credentials`)
       .then((r) => (r.ok ? r.json() : []))
@@ -1150,7 +1185,7 @@ export default function Connections() {
             </section>
 
             {isSectionVisible("google_workspace", goal) && (
-              <section className="bg-white border ghost-border rounded-2xl p-6 shadow-sm md:col-span-2">
+              <section data-focus-platform="google_workspace" className="bg-white border ghost-border rounded-2xl p-6 shadow-sm md:col-span-2 data-[focused=true]:ring-4 data-[focused=true]:ring-[#2563EB]/40 data-[focused=true]:ring-offset-2 transition-all">
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-white border ghost-border flex items-center justify-center shadow-sm">
@@ -1320,7 +1355,7 @@ export default function Connections() {
             )}
 
             {isSectionVisible("meta_ads", goal) && (
-              <section className="bg-white border ghost-border rounded-2xl p-6 shadow-sm">
+              <section data-focus-platform="meta_ads" className="bg-white border ghost-border rounded-2xl p-6 shadow-sm data-[focused=true]:ring-4 data-[focused=true]:ring-[#2563EB]/40 data-[focused=true]:ring-offset-2 transition-all">
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-[#0081FB]/5 border border-[#0081FB]/10 flex items-center justify-center">
@@ -1503,10 +1538,13 @@ export default function Connections() {
             )}
 
             {isSectionVisible("shopify", goal) && (
-              <section className={cn(
-                "bg-white border ghost-border rounded-2xl p-6 shadow-sm md:col-span-2",
-                isShopifyConnected && "border-l-4 border-l-[#96bf48]",
-              )}>
+              <section
+                data-focus-platform="shopify"
+                className={cn(
+                  "bg-white border ghost-border rounded-2xl p-6 shadow-sm md:col-span-2 data-[focused=true]:ring-4 data-[focused=true]:ring-[#2563EB]/40 data-[focused=true]:ring-offset-2 transition-all",
+                  isShopifyConnected && "border-l-4 border-l-[#96bf48]",
+                )}
+              >
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-[#96bf48]/10 border border-[#96bf48]/20 flex items-center justify-center">

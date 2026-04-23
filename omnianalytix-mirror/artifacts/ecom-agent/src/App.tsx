@@ -399,7 +399,7 @@ function App() {
     sessionStorage.setItem("omni_first_step_focus", focusPlatform);
     clearWelcomePending();
     setShowWelcome(false);
-    navigate("/connections");
+    navigate(`/connections?focus=${encodeURIComponent(focusPlatform)}`);
   }, [navigate]);
 
   const handleWelcomeSkip = useCallback(() => {

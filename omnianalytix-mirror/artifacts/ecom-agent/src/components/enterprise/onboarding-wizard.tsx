@@ -945,10 +945,12 @@ export function OnboardingWizard({ onComplete, onLaunchDiagnostic }: OnboardingW
   // orval's strict UseQueryOptions requires queryKey, but the generated hook
   // injects a default key internally. Cast options to satisfy the type and
   // narrow the data with the connection shape used downstream.
+  // The 3-second poll was masking a missing invalidation: connection-dialog
+  // already invalidates the connections query on a successful link, so we can
+  // rely on react-query's default refetch-on-focus + that invalidation to keep
+  // the connection state fresh — no more 20-req/min idle hammering.
   type ConnRow = { platform: string; isActive?: boolean | null };
-  const { data: connections = [] as ConnRow[] } = useListConnections(
-    { query: { refetchInterval: 3000 } } as Parameters<typeof useListConnections>[0],
-  ) as { data: ConnRow[] | undefined };
+  const { data: connections = [] as ConnRow[] } = useListConnections() as { data: ConnRow[] | undefined };
 
   // ── Derived connection flags ───────────────────────────────────────────────
   const shopifyConnected = connections.some((c) => c.platform === "shopify" && !!c.isActive);

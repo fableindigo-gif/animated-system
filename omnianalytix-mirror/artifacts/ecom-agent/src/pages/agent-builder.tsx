@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback, type MouseEvent as ReactMouseEvent } from "react";
+import { useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useLocation, Link } from "wouter";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authFetch, authPost, authDelete } from "@/lib/auth-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { QueryErrorState } from "@/components/query-error-state";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -43,10 +46,7 @@ const TONE_COLORS: Record<string, string> = {
 
 export default function AgentBuilderPage() {
   const [, setLocation]        = useLocation();
-  const [agents, setAgents]    = useState<AiAgent[]>([]);
-  const [loading, setLoading]  = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const queryClient            = useQueryClient();
   const [search, setSearch]    = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName]  = useState("");
@@ -54,45 +54,56 @@ export default function AgentBuilderPage() {
   const [newTone, setNewTone]  = useState("Professional");
   const [createErr, setCreateErr] = useState<string | null>(null);
 
-  const fetchAgents = useCallback(async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      const res  = await authFetch(`${API_BASE}api/ai-agents`);
-      if (!res.ok) {
-        setLoadError(`Could not load agents (HTTP ${res.status}).`);
-        return;
-      }
-      const data = await res.json() as { agents: AiAgent[] };
-      setAgents(data.agents);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Network error — could not load agents.");
-    } finally { setLoading(false); }
-  }, []);
+  const agentsQuery = useQuery({
+    queryKey: queryKeys.aiAgents(),
+    queryFn: async () => {
+      const res = await authFetch(`${API_BASE}api/ai-agents`);
+      if (!res.ok) throw new Error(`Could not load agents (HTTP ${res.status}).`);
+      const data = (await res.json()) as { agents: AiAgent[] };
+      return data.agents;
+    },
+  });
+  const agents = agentsQuery.data ?? [];
+  const loading = agentsQuery.isLoading;
+  const loadError = agentsQuery.isError ? (agentsQuery.error as Error)?.message ?? "Failed to load agents." : null;
+  const fetchAgents = () => agentsQuery.refetch();
 
-  useEffect(() => { fetchAgents(); }, []);
-
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    setCreating(true);
-    setCreateErr(null);
-    try {
-      const res  = await authPost(`${API_BASE}api/ai-agents`, {
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const res = await authPost(`${API_BASE}api/ai-agents`, {
         name: newName.trim(), objective: newObjective, toneOfVoice: newTone,
       });
-      const data = await res.json() as { agent?: AiAgent; error?: string };
-      if (!res.ok) { setCreateErr(data.error ?? "Failed to create agent"); return; }
+      const data = (await res.json()) as { agent?: AiAgent; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to create agent");
+      return data.agent!;
+    },
+    onSuccess: (agent) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.aiAgents() });
       setShowCreate(false);
       setNewName("");
-      setLocation(`/agent-builder/${data.agent!.id}`);
-    } finally { setCreating(false); }
+      setLocation(`/agent-builder/${agent.id}`);
+    },
+    onError: (e) => setCreateErr(e instanceof Error ? e.message : "Failed to create agent"),
+  });
+  const creating = createMutation.isPending;
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    setCreateErr(null);
+    createMutation.mutate();
   };
 
-  const handleDelete = async (id: number, e: ReactMouseEvent<HTMLButtonElement>) => {
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await authDelete(`${API_BASE}api/ai-agents/${id}`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.aiAgents() }),
+  });
+
+  const handleDelete = (id: number, e: ReactMouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     if (!confirm("Delete this agent and all its knowledge base data?")) return;
-    await authDelete(`${API_BASE}api/ai-agents/${id}`);
-    setAgents((a) => a.filter((ag) => ag.id !== id));
+    deleteMutation.mutate(id);
   };
 
   const filtered = agents.filter((a) =>
@@ -238,15 +249,7 @@ export default function AgentBuilderPage() {
             ))}
           </div>
         ) : loadError ? (
-          <div className="text-center py-16 px-6 bg-rose-50/60 border border-rose-100 rounded-2xl">
-            <p className="text-sm font-semibold text-rose-700">{loadError}</p>
-            <button
-              onClick={fetchAgents}
-              className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-white border border-rose-200 text-rose-700 rounded-xl text-xs font-bold hover:bg-rose-100 transition-all"
-            >
-              <RefreshCw className="w-3.5 h-3.5" /> Try again
-            </button>
-          </div>
+          <QueryErrorState title="Couldn't load agents" error={loadError} onRetry={fetchAgents} />
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-4">
             <div className="w-16 h-16 rounded-2xl bg-indigo-50 flex items-center justify-center">

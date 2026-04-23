@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authFetch, authPost } from "@/lib/auth-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { QueryErrorState } from "@/components/query-error-state";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
@@ -354,12 +357,9 @@ function StatusBadge({ status }: { status: EnrichmentJob["status"] }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function FeedEnrichmentPage() {
   const { activeWorkspace }    = useWorkspace();
-  const [status, setStatus]    = useState<EnrichmentStatus | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [totalProducts, setTotalProducts] = useState(0);
+  const queryClient            = useQueryClient();
   const [filter, setFilter]    = useState<FilterMode>("all");
   const [page, setPage]        = useState(1);
-  const [loading, setLoading]  = useState(true);
   const [running, setRunning]  = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
@@ -711,33 +711,50 @@ export default function FeedEnrichmentPage() {
     if (view === "writeback") fetchWritebacks();
   }, [view, wbStatusFilter]);
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res  = await authFetch(`${API_BASE}api/feed-enrichment/status`);
-      if (res.ok) {
-        const data = await res.json() as EnrichmentStatus;
-        setStatus(data);
-        if (data.latestJob?.status === "running") {
-          setActiveJobId(data.latestJob.id);
-          setRunning(true);
-        } else {
-          setRunning(false);
-        }
-      }
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, []);
+  // Status query — react-query handles cancellation across mounts and gives
+  // us a single source of truth for latest job state.
+  const statusQuery = useQuery({
+    queryKey: queryKeys.feedEnrichmentStatus(),
+    queryFn: async () => {
+      const res = await authFetch(`${API_BASE}api/feed-enrichment/status`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as EnrichmentStatus;
+    },
+  });
+  const status = statusQuery.data ?? null;
+  const loading = statusQuery.isLoading;
+  const fetchStatus = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.feedEnrichmentStatus() }),
+    [queryClient],
+  );
 
-  const fetchProducts = useCallback(async () => {
-    try {
-      const res  = await authFetch(`${API_BASE}api/feed-enrichment/products?page=${page}&limit=50&filter=${filter}`);
-      if (res.ok) {
-        const data = await res.json() as { products: Product[]; total: number };
-        setProducts(data.products);
-        setTotalProducts(data.total);
-      }
-    } catch { /* silent */ }
-  }, [page, filter]);
+  // Sync local running/activeJobId from status payload exactly once per change.
+  useEffect(() => {
+    if (!status) return;
+    if (status.latestJob?.status === "running") {
+      setActiveJobId(status.latestJob.id);
+      setRunning(true);
+    } else {
+      setRunning(false);
+    }
+  }, [status]);
+
+  // Products query — keyed on page+filter so changing either auto-refetches
+  // and cancels any stale request mid-flight.
+  const productsQuery = useQuery({
+    queryKey: queryKeys.feedEnrichmentProducts(page, filter),
+    queryFn: async () => {
+      const res = await authFetch(`${API_BASE}api/feed-enrichment/products?page=${page}&limit=50&filter=${filter}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as { products: Product[]; total: number };
+    },
+  });
+  const products = productsQuery.data?.products ?? [];
+  const totalProducts = productsQuery.data?.total ?? 0;
+  const fetchProducts = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.feedEnrichmentProducts(page, filter) }),
+    [page, filter, queryClient],
+  );
 
   const pollActiveJob = useCallback(async (jobId: number) => {
     try {
@@ -751,14 +768,16 @@ export default function FeedEnrichmentPage() {
           await fetchStatus();
           await fetchProducts();
         } else {
-          setStatus((prev) => prev ? { ...prev, latestJob: job } : prev);
+          // Optimistic patch of the cached status while the job runs — keeps
+          // the progress widget responsive without invalidating every tick.
+          queryClient.setQueryData<EnrichmentStatus | null>(
+            queryKeys.feedEnrichmentStatus(),
+            (prev) => prev ? { ...prev, latestJob: job } : prev,
+          );
         }
       }
     } catch { /* silent */ }
-  }, [fetchStatus, fetchProducts]);
-
-  useEffect(() => { fetchStatus(); fetchProducts(); }, []);
-  useEffect(() => { fetchProducts(); }, [filter, page]);
+  }, [fetchStatus, fetchProducts, queryClient]);
 
   useEffect(() => {
     if (activeJobId && running) {
@@ -1427,6 +1446,14 @@ export default function FeedEnrichmentPage() {
 
         {view === "enrichment" && <>
         {/* ── Top Stats Row ── */}
+        {statusQuery.isError && (
+          <QueryErrorState
+            title="Couldn't load enrichment status"
+            error={statusQuery.error}
+            onRetry={() => statusQuery.refetch()}
+            compact
+          />
+        )}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -1693,7 +1720,14 @@ export default function FeedEnrichmentPage() {
             </div>
           </div>
 
-          {products.length === 0 ? (
+          {productsQuery.isError ? (
+            <QueryErrorState
+              title="Couldn't load products"
+              error={productsQuery.error}
+              onRetry={() => productsQuery.refetch()}
+              compact
+            />
+          ) : products.length === 0 ? (
             <div className="flex flex-col items-center py-12 gap-3">
               <ShoppingBag className="w-8 h-8 text-slate-200" />
               <p className="text-sm text-slate-400">

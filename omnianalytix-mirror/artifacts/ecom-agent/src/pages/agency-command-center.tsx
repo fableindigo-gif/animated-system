@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useWorkspace, type Workspace } from "@/contexts/workspace-context";
 import { WorkspaceProvisionWizard } from "@/components/enterprise/workspace-provision-wizard";
 import { WorkspaceContextMenu } from "@/components/enterprise/workspace-context-menu";
 import { authFetch } from "@/lib/auth-fetch";
+import { queryKeys } from "@/lib/query-keys";
 import { Building2, ChevronDown, ChevronRight as ChevronRightIcon } from "lucide-react";
 import HandoffRegistry from "@/components/agency/HandoffRegistry";
 
@@ -122,21 +124,24 @@ export default function AgencyCommandCenter() {
   const [, navigate] = useLocation();
   const { workspaces, activeWorkspace, switchWorkspace, isLoading } = useWorkspace();
   const [showWizard, setShowWizard] = useState(false);
-  const [orgs, setOrgs] = useState<OrgRow[]>([]);
   const [expandedOrgs, setExpandedOrgs] = useState<Set<number>>(new Set());
 
-  const fetchOrgs = useCallback(async () => {
-    try {
+  const orgsQuery = useQuery({
+    queryKey: queryKeys.agencyOrganizations(),
+    queryFn: async () => {
       const res = await authFetch(`${BASE}/api/admin/organizations`);
-      if (res.ok) {
-        const data: OrgRow[] = await res.json();
-        setOrgs(data);
-        setExpandedOrgs(new Set(data.map((o) => o.id)));
-      }
-    } catch { }
-  }, []);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as OrgRow[];
+    },
+  });
+  const orgs = orgsQuery.data ?? [];
 
-  useEffect(() => { fetchOrgs(); }, [fetchOrgs]);
+  // Default-expand each org once when the list first arrives.
+  useEffect(() => {
+    if (orgsQuery.data) {
+      setExpandedOrgs((prev) => prev.size === 0 ? new Set(orgsQuery.data.map((o) => o.id)) : prev);
+    }
+  }, [orgsQuery.data]);
 
   const toggleOrg = (id: number) => setExpandedOrgs((prev) => {
     const next = new Set(prev);

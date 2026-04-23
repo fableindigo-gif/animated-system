@@ -1,8 +1,11 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useUserRole, ROLE_LABELS, type Role } from "@/contexts/user-role-context";
 import { useHasPermission } from "@/hooks/use-has-permission";
 import { authFetch, authPatch } from "@/lib/auth-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { QueryErrorState } from "@/components/query-error-state";
 import { useToast } from "@/hooks/use-toast";
 import { SiGoogleads, SiMeta, SiShopify, SiGoogle } from "react-icons/si";
 import {
@@ -707,8 +710,7 @@ type TabFilter = "pending" | "approved" | "rejected" | "all";
 function AIProposals() {
   const { currentUser } = useUserRole();
   const { toast } = useToast();
-  const [tasks, setTasks]                 = useState<ProposedTask[]>([]);
-  const [loading, setLoading]             = useState(true);
+  const queryClient                       = useQueryClient();
   const [activeTab, setActiveTab]         = useState<TabFilter>("pending");
   const [actingId, setActingId]           = useState<number | null>(null);
   const [selectedIds, setSelectedIds]     = useState<Set<number>>(new Set());
@@ -719,21 +721,33 @@ function AIProposals() {
   const [savingToLibrary, setSavingToLibrary] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const fetchTasks = useCallback(async () => {
-    try {
+  // Tasks are scoped per-tab — react-query handles cancellation when the tab
+  // changes mid-flight, so we no longer hand-roll an AbortController here.
+  const tasksQuery = useQuery({
+    queryKey: queryKeys.tasks(activeTab),
+    queryFn: async () => {
       const url = activeTab === "all"
         ? `${BASE}/api/tasks`
         : `${BASE}/api/tasks?status=${activeTab}`;
       const res = await authFetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setTasks(Array.isArray(data) ? data : []);
-      }
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, [activeTab]);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return Array.isArray(data) ? (data as ProposedTask[]) : [];
+    },
+  });
+  const tasks   = tasksQuery.data ?? [];
+  const loading = tasksQuery.isLoading;
+  // Invalidate the entire `tasks` namespace, not just the active tab — an
+  // approve in "pending" needs to refresh "approved" / "all" caches too,
+  // otherwise the count badges and other tabs go stale until the user
+  // navigates away and back.
+  const fetchTasks = useCallback(
+    () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+    [queryClient],
+  );
 
-  useEffect(() => { setLoading(true); setSelectedIds(new Set()); fetchTasks(); }, [fetchTasks]);
+  // Reset selection whenever the user switches tabs.
+  useEffect(() => { setSelectedIds(new Set()); }, [activeTab]);
 
   const notifyTaskCountChanged = () => window.dispatchEvent(new CustomEvent("omni:task-count-changed"));
 
@@ -897,6 +911,12 @@ function AIProposals() {
               <div key={i} className="h-44 rounded-xl bg-surface-container-lowest ghost-border animate-pulse" />
             ))}
           </div>
+        ) : tasksQuery.isError ? (
+          <QueryErrorState
+            title="Couldn't load tasks"
+            error={tasksQuery.error}
+            onRetry={() => tasksQuery.refetch()}
+          />
         ) : tasks.length === 0 ? (
           <div className="bg-surface-container-lowest rounded-xl ghost-border p-16 text-center ambient-shadow-sm">
             <span className="material-symbols-outlined text-5xl text-surface-container-highest mb-4 block">

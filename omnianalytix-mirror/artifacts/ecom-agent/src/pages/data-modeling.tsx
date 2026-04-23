@@ -1,5 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authFetch } from "@/lib/auth-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { QueryErrorState } from "@/components/query-error-state";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, Code2, Calculator, Hash, Type, Loader2, X, Sparkles, Layers3 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -223,30 +226,43 @@ function CreateMetricModal({ open, onClose, onCreated }: { open: boolean; onClos
 }
 
 export default function DataModeling() {
-  const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
 
-  const fetchMetrics = useCallback(async () => {
-    try {
+  const metricsQuery = useQuery({
+    queryKey: queryKeys.dataModelingMetrics(),
+    queryFn: async () => {
       const res = await authFetch(`${BASE}/api/data-modeling/metrics`);
-      if (res.ok) setMetrics(await res.json());
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as Metric[];
+    },
+  });
+  const metrics = metricsQuery.data ?? [];
 
-  useEffect(() => { fetchMetrics(); }, [fetchMetrics]);
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await authFetch(`${BASE}/api/data-modeling/metrics/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.dataModelingMetrics() }),
+  });
+  const handleDelete = (id: number) => deleteMutation.mutate(id);
 
-  const handleDelete = async (id: number) => {
-    const res = await authFetch(`${BASE}/api/data-modeling/metrics/${id}`, { method: "DELETE" });
-    if (res.ok) setMetrics((prev) => prev.filter((m) => m.id !== id));
-  };
-
-  if (loading) {
+  if (metricsQuery.isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <Loader2 className="w-8 h-8 animate-spin text-primary-m3" />
+      </div>
+    );
+  }
+  if (metricsQuery.isError) {
+    return (
+      <div className="p-6 max-w-[1400px] mx-auto">
+        <QueryErrorState
+          title="Couldn't load custom metrics"
+          error={metricsQuery.error}
+          onRetry={() => metricsQuery.refetch()}
+        />
       </div>
     );
   }
@@ -301,8 +317,8 @@ export default function DataModeling() {
           <CreateMetricModal
             open={creating}
             onClose={() => setCreating(false)}
-            onCreated={(m) => {
-              setMetrics((prev) => [m, ...prev]);
+            onCreated={() => {
+              queryClient.invalidateQueries({ queryKey: queryKeys.dataModelingMetrics() });
               setCreating(false);
             }}
           />

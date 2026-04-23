@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { authFetch } from "@/lib/auth-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { QueryErrorState } from "@/components/query-error-state";
 import { AppShell } from "@/components/layout/app-shell";
 import { cn } from "@/lib/utils";
 import {
@@ -92,61 +95,40 @@ export default function ActivityLogPage() {
   const params     = new URLSearchParams(window.location.search);
   const highlightId = params.get("highlight") ? Number(params.get("highlight")) : null;
 
-  const [entries, setEntries]     = useState<AuditLogEntry[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
   const [page, setPage]           = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal]         = useState(0);
-
-  const [focusedEntry, setFocusedEntry] = useState<AuditLogEntry | null>(null);
-  const [focusLoading, setFocusLoading] = useState(false);
-  const [focusNotFound, setFocusNotFound] = useState(false);
 
   const highlightRef = useRef<HTMLLIElement | null>(null);
   const PAGE_SIZE    = 25;
 
-  const fetchEntries = useCallback(async (p: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res  = await authFetch(`${API_BASE}api/actions/audit?page=${p}&pageSize=${PAGE_SIZE}`);
-      if (!res.ok) { setError("Failed to load activity log"); return; }
-      const data = await res.json() as PaginatedAuditLog;
-      setEntries(data.data ?? []);
-      setPage(data.page ?? p);
-      setTotalPages(data.totalPages ?? 1);
-      setTotal(data.total ?? 0);
-    } catch {
-      setError("Network error — could not load activity log");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const entriesQuery = useQuery({
+    queryKey: queryKeys.auditLog(page, PAGE_SIZE),
+    queryFn: async () => {
+      const res = await authFetch(`${API_BASE}api/actions/audit?page=${page}&pageSize=${PAGE_SIZE}`);
+      if (!res.ok) throw new Error("Failed to load activity log");
+      return (await res.json()) as PaginatedAuditLog;
+    },
+  });
+  const entries     = entriesQuery.data?.data ?? [];
+  const totalPages  = entriesQuery.data?.totalPages ?? 1;
+  const total       = entriesQuery.data?.total ?? 0;
+  const loading     = entriesQuery.isLoading;
+  const error       = entriesQuery.isError ? "Failed to load activity log" : null;
+  const fetchEntries = (p: number) => { setPage(p); };
 
-  const fetchFocusedEntry = useCallback(async (id: number) => {
-    setFocusLoading(true);
-    setFocusNotFound(false);
-    try {
-      const res = await authFetch(`${API_BASE}api/actions/audit/${id}`);
-      if (res.status === 404) { setFocusNotFound(true); return; }
-      if (!res.ok) return;
-      const data = await res.json() as AuditLogEntry;
-      setFocusedEntry(data);
-    } catch {
-      // best-effort
-    } finally {
-      setFocusLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchEntries(1);
-  }, [fetchEntries]);
-
-  useEffect(() => {
-    if (highlightId) void fetchFocusedEntry(highlightId);
-  }, [highlightId, fetchFocusedEntry]);
+  // Focused entry lookup — only fires when there's a `?highlight=` query.
+  const focusedEntryQuery = useQuery({
+    queryKey: queryKeys.auditLogEntry(highlightId ?? 0),
+    enabled: highlightId != null,
+    queryFn: async () => {
+      const res = await authFetch(`${API_BASE}api/actions/audit/${highlightId}`);
+      if (res.status === 404) return { __notFound: true } as const;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as AuditLogEntry;
+    },
+  });
+  const focusLoading  = focusedEntryQuery.isLoading;
+  const focusNotFound = !!(focusedEntryQuery.data && (focusedEntryQuery.data as { __notFound?: boolean }).__notFound);
+  const focusedEntry  = focusNotFound ? null : (focusedEntryQuery.data as AuditLogEntry | undefined) ?? null;
 
   useEffect(() => {
     if (!highlightRef.current) return;

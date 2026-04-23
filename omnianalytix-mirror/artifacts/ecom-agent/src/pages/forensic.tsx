@@ -1,4 +1,6 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
   Panel,
   PanelGroup,
@@ -93,21 +95,18 @@ interface ForensicDataState {
 }
 
 function useForensicData(dateRange: DateRange, searchTerm: string): ForensicDataState {
-  const [raw, setRaw] = useState<{ shopify: ShopifyEvent[]; ads: AdEvent[]; leaks: LeakEntry[] }>({ shopify: [], ads: [], leaks: [] });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const days = dateRangeToDays(dateRange);
+  const days = dateRangeToDays(dateRange);
+  const query = useQuery({
+    queryKey: queryKeys.forensicEcom(days),
+    queryFn: async () => {
       const [productsRes, channelsRes, leaksRes] = await Promise.all([
         authFetch(`${API_BASE}/api/warehouse/products?days=${days}&page_size=100`),
         authFetch(`${API_BASE}/api/warehouse/channels?days=${days}&page_size=100`),
         authFetch(`${API_BASE}/api/warehouse/margin-leaks?days=${days}&page_size=100`),
       ]);
-
+      if (!productsRes.ok && !channelsRes.ok && !leaksRes.ok) {
+        throw new Error("Failed to load forensic data");
+      }
       const productsJson = productsRes.ok ? await productsRes.json() : { data: [] };
       const channelsJson = channelsRes.ok ? await channelsRes.json() : { data: [] };
       const leaksJson = leaksRes.ok ? await leaksRes.json() : { data: [] };
@@ -166,16 +165,11 @@ function useForensicData(dateRange: DateRange, searchTerm: string): ForensicData
         };
       });
 
-      setRaw({ shopify, ads, leaks });
-    } catch (err) {
-      setError("Failed to load forensic data");
-      setRaw({ shopify: [], ads: [], leaks: [] });
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange]);
+      return { shopify, ads, leaks };
+    },
+  });
 
-  useEffect(() => { void fetchData(); }, [fetchData]);
+  const raw = query.data ?? { shopify: [], ads: [], leaks: [] };
 
   const filtered = useMemo(() => {
     if (!searchTerm) return raw;
@@ -187,7 +181,7 @@ function useForensicData(dateRange: DateRange, searchTerm: string): ForensicData
     };
   }, [raw, searchTerm]);
 
-  return { ...filtered, loading, error };
+  return { ...filtered, loading: query.isLoading, error: query.isError ? "Failed to load forensic data" : null };
 }
 
 interface LeadgenDataState {
@@ -199,20 +193,15 @@ interface LeadgenDataState {
 }
 
 function useLeadgenData(dateRange: DateRange, searchTerm: string): LeadgenDataState {
-  const [raw, setRaw] = useState<{ leads: LeadEvent[]; ads: AdEvent[]; funnelLeaks: FunnelLeak[] }>({ leads: [], ads: [], funnelLeaks: [] });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const days = dateRangeToDays(dateRange);
+  const days = dateRangeToDays(dateRange);
+  const query = useQuery({
+    queryKey: queryKeys.forensicLeadgen(days),
+    queryFn: async () => {
       const [channelsRes, pipelineRes] = await Promise.all([
         authFetch(`${API_BASE}/api/warehouse/channels?days=${days}&page_size=100`),
         authFetch(`${API_BASE}/api/warehouse/pipeline-triage?days=${days}`),
       ]);
-
+      if (!channelsRes.ok && !pipelineRes.ok) throw new Error("Failed to load lead data");
       const channelsJson = channelsRes.ok ? await channelsRes.json() : { data: [] };
       const pipelineJson = pipelineRes.ok ? await pipelineRes.json() : { data: [] };
 
@@ -279,16 +268,11 @@ function useLeadgenData(dateRange: DateRange, searchTerm: string): LeadgenDataSt
         });
       }
 
-      setRaw({ leads, ads, funnelLeaks });
-    } catch {
-      setError("Failed to load lead data");
-      setRaw({ leads: [], ads: [], funnelLeaks: [] });
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange]);
+      return { leads, ads, funnelLeaks };
+    },
+  });
 
-  useEffect(() => { void fetchData(); }, [fetchData]);
+  const raw = query.data ?? { leads: [], ads: [], funnelLeaks: [] };
 
   const filtered = useMemo(() => {
     if (!searchTerm) return raw;
@@ -300,7 +284,7 @@ function useLeadgenData(dateRange: DateRange, searchTerm: string): LeadgenDataSt
     };
   }, [raw, searchTerm]);
 
-  return { ...filtered, loading, error };
+  return { ...filtered, loading: query.isLoading, error: query.isError ? "Failed to load lead data" : null };
 }
 
 function ForensicHeader({

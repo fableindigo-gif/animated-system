@@ -1,5 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authFetch } from "@/lib/auth-fetch";
+import { queryKeys } from "@/lib/query-keys";
+import { QueryErrorState } from "@/components/query-error-state";
 import { cn } from "@/lib/utils";
 import { Plus, Building2, Users, Cable, Loader2, Search, ChevronRight, Check } from "lucide-react";
 
@@ -17,65 +20,62 @@ interface OrgRow {
 }
 
 export default function AdminClientsPage() {
-  const [orgs, setOrgs] = useState<OrgRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ name: "", slug: "", adminEmail: "", goal: "ecom" as "ecom" | "leadgen" | "hybrid" });
 
-  const fetchOrgs = useCallback(async () => {
-    setLoadError(null);
-    try {
+  const orgsQuery = useQuery({
+    queryKey: queryKeys.adminOrganizations(),
+    queryFn: async () => {
       const res = await authFetch(`${BASE}/api/admin/organizations`);
-      if (!res.ok) {
-        setLoadError(`Could not load organizations (HTTP ${res.status}).`);
-        return;
-      }
-      const data = await res.json();
-      setOrgs(data);
-    } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Network error — could not load organizations.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      if (!res.ok) throw new Error(`Could not load organizations (HTTP ${res.status}).`);
+      return (await res.json()) as OrgRow[];
+    },
+  });
+  const orgs = orgsQuery.data ?? [];
+  const loading = orgsQuery.isLoading;
+  const loadError = orgsQuery.isError ? (orgsQuery.error as Error)?.message ?? "Failed to load organizations." : null;
 
-  useEffect(() => { fetchOrgs(); }, [fetchOrgs]);
-
-  const handleCreate = async () => {
-    if (!form.name.trim() || !form.slug.trim()) {
-      setError("Organization name and slug are required.");
-      return;
-    }
-    setCreating(true);
-    setError("");
-    try {
+  const createMutation = useMutation({
+    mutationFn: async (payload: typeof form) => {
       const res = await authFetch(`${BASE}/api/admin/organizations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error ?? "Failed to create organization");
       }
+      return res.json();
+    },
+    onSuccess: () => {
       setCreated(true);
+      // Invalidate so the new org appears without a manual refetch helper.
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminOrganizations() });
       setTimeout(() => {
         setShowCreate(false);
         setCreated(false);
         setForm({ name: "", slug: "", adminEmail: "", goal: "ecom" });
-        fetchOrgs();
       }, 1500);
-    } catch (e) {
+    },
+    onError: (e) => {
       setError(e instanceof Error ? e.message : "Failed to create");
-    } finally {
-      setCreating(false);
+    },
+  });
+
+  const handleCreate = () => {
+    if (!form.name.trim() || !form.slug.trim()) {
+      setError("Organization name and slug are required.");
+      return;
     }
+    setError("");
+    createMutation.mutate(form);
   };
+  const creating = createMutation.isPending;
 
   const filtered = orgs.filter((o) =>
     o.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -121,15 +121,11 @@ export default function AdminClientsPage() {
           <Loader2 className="w-6 h-6 animate-spin text-on-surface-variant" />
         </div>
       ) : loadError ? (
-        <div className="text-center py-16 px-6 bg-rose-50/60 border border-rose-100 rounded-2xl">
-          <p className="text-sm font-semibold text-rose-700">{loadError}</p>
-          <button
-            onClick={fetchOrgs}
-            className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-white border border-rose-200 text-rose-700 rounded-xl text-xs font-bold hover:bg-rose-100 transition-all"
-          >
-            Try again
-          </button>
-        </div>
+        <QueryErrorState
+          title="Couldn't load organizations"
+          error={loadError}
+          onRetry={() => orgsQuery.refetch()}
+        />
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           <Building2 className="w-12 h-12 mx-auto text-surface-container-highest mb-4" />

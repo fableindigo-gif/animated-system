@@ -5,10 +5,12 @@
  */
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useToast } from "@/hooks/use-toast";
 import { authFetch } from "@/lib/auth-fetch";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/contexts/currency-context";
 import { useFx } from "@/contexts/fx-context";
@@ -452,26 +454,29 @@ function EconomicsTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
 
+  // Economics settings are loaded via react-query so navigating away mid-fetch
+  // can't trigger a "set state on unmounted" warning, and re-entering the tab
+  // hits the cache instead of re-fetching.
+  const economicsQuery = useQuery({
+    queryKey: queryKeys.economicsSettings(),
+    queryFn: async () => {
+      const res = await authFetch(`${API_BASE}api/settings/economics`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as EconomicsPayload;
+    },
+  });
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await authFetch(`${API_BASE}api/settings/economics`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as EconomicsPayload;
-        if (!alive) return;
-        // Show COGS as percentage (35) not fraction (0.35) — friendlier for humans.
-        setCogsPctInput(data.cogsPct == null ? "" : (data.cogsPct * 100).toFixed(1).replace(/\.0$/, ""));
-        setTargetRoasInput(data.targetRoas == null ? "" : data.targetRoas.toString());
-        setOverrideCount(Object.keys(data.campaignOverrides ?? {}).length);
-      } catch {
-        if (alive) toast({ title: "Failed to load economics", variant: "destructive" });
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, [toast]);
+    if (!economicsQuery.data) return;
+    const data = economicsQuery.data;
+    // Show COGS as percentage (35) not fraction (0.35) — friendlier for humans.
+    setCogsPctInput(data.cogsPct == null ? "" : (data.cogsPct * 100).toFixed(1).replace(/\.0$/, ""));
+    setTargetRoasInput(data.targetRoas == null ? "" : data.targetRoas.toString());
+    setOverrideCount(Object.keys(data.campaignOverrides ?? {}).length);
+  }, [economicsQuery.data]);
+  useEffect(() => {
+    if (economicsQuery.isError) toast({ title: "Failed to load economics", variant: "destructive" });
+  }, [economicsQuery.isError, toast]);
+  useEffect(() => { setLoading(economicsQuery.isLoading); }, [economicsQuery.isLoading]);
 
   async function handleSave() {
     // Empty fields explicitly clear the override (null) so the dashboard

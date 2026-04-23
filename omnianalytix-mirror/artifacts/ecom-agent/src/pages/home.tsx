@@ -186,6 +186,21 @@ export default function Home() {
 
   // Mobile pane navigation
   const [mobilePane, setMobilePane] = useState<"radar" | "chat" | "reports">("chat");
+  // Track whether the right rail is rendering at its narrow lg+ width (320px)
+  // vs the mobile reports pane's full-width fallback. Compact mode for
+  // PerformanceGrid is bound to the narrow rail only — mobile keeps the
+  // full-fidelity layout including the embedded FilterBar.
+  const [isLgRail, setIsLgRail] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : true,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const onChange = (e: MediaQueryListEvent) => setIsLgRail(e.matches);
+    mql.addEventListener("change", onChange);
+    setIsLgRail(mql.matches);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
 
   const personaMode = "analyst";
 
@@ -1139,14 +1154,19 @@ export default function Home() {
         )}
       </div>
 
-      {/* RIGHT — Active Channels Performance Grid */}
+      {/* RIGHT — Active Channels Performance Grid
+          Compact mode is bound to the actual narrow-rail rendering: at lg+
+          the rail is a fixed 320px column, so we render PerformanceGrid in
+          compact mode. Below lg the same pane flips to full-width when the
+          mobile reports tab is active, and we keep the full-fidelity
+          (non-compact) layout including the embedded FilterBar. */}
       <div className={cn(
         "shrink-0 h-full transition-all duration-200",
         "lg:flex lg:w-[320px]",
         mobilePane === "reports" ? "flex w-full" : "hidden",
       )}>
         <ErrorBoundary fallbackLabel="Unable to load channels grid">
-          <PerformanceGrid compact onAnalyze={(prompt) => { setViewMode("summary"); setMobilePane("chat"); handleSend(prompt); }} />
+          <PerformanceGrid compact={isLgRail} onAnalyze={(prompt) => { setViewMode("summary"); setMobilePane("chat"); handleSend(prompt); }} />
         </ErrorBoundary>
       </div>
 

@@ -11,7 +11,7 @@ interface WelcomeOverlayProps {
 
 const FOCUS_BY_GOAL: Record<"ecom" | "leadgen" | "hybrid", { platform: string; label: string; icon: typeof ShoppingCart; tagline: string }> = {
   ecom:    { platform: "shopify",          label: "Shopify",           icon: ShoppingCart, tagline: "We'll pull SKUs, orders, and ad spend so you can see margin in minutes." },
-  leadgen: { platform: "google_workspace", label: "Google Ads",        icon: Search,       tagline: "We'll pull campaigns, keywords, and conversions so you can see CPL in minutes." },
+  leadgen: { platform: "google_workspace", label: "Google Workspace",  icon: Search,       tagline: "Connect Google to pull Ads, Search Console, and Analytics so you can see CPL in minutes." },
   hybrid:  { platform: "google_workspace", label: "Google Workspace",  icon: Zap,          tagline: "Connect Google first — Shopify and your CRM can follow in any order." },
 };
 

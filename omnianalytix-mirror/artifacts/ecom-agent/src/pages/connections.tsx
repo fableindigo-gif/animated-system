@@ -629,7 +629,10 @@ export default function Connections() {
 
   const loadByodbCredentials = useCallback(() => {
     authFetch(`${API_BASE}api/byodb/credentials`)
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => setByodbCredentials(data))
       .catch((err) => {
         console.error("[Connections] Failed to load BYODB credentials:", err);

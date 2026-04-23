@@ -122,6 +122,13 @@ interface LiveChannel {
 
 interface PerformanceGridProps {
   onAnalyze?: (prompt: string) => void;
+  /**
+   * Compact rendering mode for narrow containers (e.g. the 320px right rail
+   * in the home page). Hides the embedded FilterBar (redundant with the
+   * dashboard's main FilterBar) and stacks the header rows vertically so
+   * title/status pills/lookback don't fight for one cramped row.
+   */
+  compact?: boolean;
 }
 
 function fmt(n: number | null | undefined, prefix = "") {
@@ -751,7 +758,7 @@ function GoogleConnectPrompt() {
   );
 }
 
-export function PerformanceGrid({ onAnalyze }: PerformanceGridProps) {
+export function PerformanceGrid({ onAnalyze, compact = false }: PerformanceGridProps) {
   const isMobile = useIsMobile();
   const { dateRange, refreshKey } = useDateRange();
   const { activeWorkspace } = useWorkspace();
@@ -983,19 +990,28 @@ export function PerformanceGrid({ onAnalyze }: PerformanceGridProps) {
 
   return (
     <div className="w-full h-full border-l border-outline-variant/15 bg-white flex flex-col">
-      <div className="px-3 pt-2 shrink-0">
-        <FilterBar
-          pageKey="performance-grid"
-          dimensions={[
-            { id: "platform" },
-            { id: "campaign" },
-            { id: "network" },
-            { id: "device" },
-            { id: "country" },
-          ]}
-        />
-      </div>
-      <div className="px-4 py-3 border-b border-outline-variant/15 shrink-0 flex items-start justify-between gap-2">
+      {!compact && (
+        <div className="px-3 pt-2 shrink-0">
+          <FilterBar
+            pageKey="performance-grid"
+            dimensions={[
+              { id: "platform" },
+              { id: "campaign" },
+              { id: "network" },
+              { id: "device" },
+              { id: "country" },
+            ]}
+          />
+        </div>
+      )}
+      <div
+        className={cn(
+          "px-3 py-3 border-b border-outline-variant/15 shrink-0 flex gap-2",
+          compact
+            ? "flex-col items-stretch"
+            : "px-4 items-start justify-between",
+        )}
+      >
         <div className="shrink-0">
           <p className="text-[9px] font-semibold text-on-secondary-container uppercase tracking-widest">
             {dataSource === "live" ? "Live · Google Ads API" : "Active Channels"}
@@ -1006,7 +1022,7 @@ export function PerformanceGrid({ onAnalyze }: PerformanceGridProps) {
         </div>
 
         {/* ── Status filter ───────────────────────────────────────── */}
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className={cn("flex items-center gap-1 flex-wrap", compact && "justify-start")}>
           {(["ENABLED", "PAUSED", "REMOVED", "ALL"] as const).map((s) => {
             const labels: Record<string, string> = { ENABLED: "Active", PAUSED: "Paused", REMOVED: "Removed", ALL: "All" };
             return (
@@ -1029,7 +1045,7 @@ export function PerformanceGrid({ onAnalyze }: PerformanceGridProps) {
         </div>
 
         {/* ── Lookback + live/offline badge + refresh ─────────────── */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className={cn("flex items-center gap-2 shrink-0", compact && "justify-between")}>
           <div className="flex items-center gap-1">
             <Calendar className="w-2.5 h-2.5 text-on-surface-variant" />
             <select

@@ -1146,7 +1146,7 @@ export default function Home() {
         mobilePane === "reports" ? "flex w-full" : "hidden",
       )}>
         <ErrorBoundary fallbackLabel="Unable to load channels grid">
-          <PerformanceGrid onAnalyze={(prompt) => { setViewMode("summary"); setMobilePane("chat"); handleSend(prompt); }} />
+          <PerformanceGrid compact onAnalyze={(prompt) => { setViewMode("summary"); setMobilePane("chat"); handleSend(prompt); }} />
         </ErrorBoundary>
       </div>
 

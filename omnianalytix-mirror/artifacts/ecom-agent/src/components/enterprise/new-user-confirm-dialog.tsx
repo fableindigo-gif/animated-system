@@ -118,9 +118,19 @@ export function NewUserConfirmDialog({
                   Workspace: <span className="font-semibold text-on-surface">{orgDomain}</span>
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-on-surface-variant">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>Role: Admin (first member gets full access)</span>
+              <div className="flex items-start gap-2 text-[11px] text-on-surface-variant leading-relaxed">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                <span>
+                  Role: <span className="font-semibold text-on-surface">Admin</span> — first member gets full
+                  access. You can invite teammates as <span className="font-semibold">view‑only</span> or
+                  <span className="font-semibold"> editor</span> later from Settings.
+                </span>
+              </div>
+              <div className="flex items-start gap-2 text-[11px] text-on-surface-variant leading-relaxed">
+                <Zap className="w-3.5 h-3.5 text-accent-blue shrink-0 mt-0.5" />
+                <span>
+                  Free during onboarding · paid plans start at <span className="font-semibold text-on-surface">$49/mo</span> when you go live.
+                </span>
               </div>
             </div>
           </div>

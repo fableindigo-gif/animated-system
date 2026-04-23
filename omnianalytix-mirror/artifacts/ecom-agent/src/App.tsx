@@ -18,6 +18,7 @@ import { usePreAuthState } from "@/components/enterprise/pre-auth-onboarding";
 import { ConnectionsGuard } from "@/components/enterprise/connections-guard";
 import { AppShell } from "@/components/layout/app-shell";
 import { NewUserConfirmDialog } from "@/components/enterprise/new-user-confirm-dialog";
+import { WelcomeOverlay, markWelcomePending, isWelcomePending, clearWelcomePending } from "@/components/enterprise/welcome-overlay";
 
 // ── PERF-01: Route-level code splitting ───────────────────────────────────────
 // Every page import below is lazy so route navigation pulls a per-route chunk
@@ -392,6 +393,20 @@ function App() {
     () => !hasToken && !hasSsoCallback && !newUserConfirm,
   );
   const [showLeadCapture, setShowLeadCapture] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => isWelcomePending());
+
+  const handleWelcomeFinish = useCallback((focusPlatform: string) => {
+    sessionStorage.setItem("omni_first_step_focus", focusPlatform);
+    clearWelcomePending();
+    setShowWelcome(false);
+    navigate("/connections");
+  }, [navigate]);
+
+  const handleWelcomeSkip = useCallback(() => {
+    sessionStorage.removeItem("omni_first_step_focus");
+    clearWelcomePending();
+    setShowWelcome(false);
+  }, []);
 
   const handleNewUserConfirmed = useCallback((data: {
     token: string;
@@ -408,6 +423,8 @@ function App() {
     if (data.picture) localStorage.setItem("omni_user_avatar", data.picture);
     if (data.memberId) localStorage.setItem("omni_current_user_id", String(data.memberId));
     localStorage.setItem(NEEDS_ONBOARDING_KEY, "true");
+    markWelcomePending();
+    setShowWelcome(true);
     clearNewUserConfirmParams();
     setNewUserConfirm(null);
     setNeedsOnboarding(true);
@@ -557,6 +574,14 @@ function App() {
   return (
     <AuthGate onUnauthenticated={() => setShowLanding(true)}>
       <AuthenticatedApp />
+      {showWelcome && (
+        <WelcomeOverlay
+          name={localStorage.getItem("omni_user_name") ?? ""}
+          goal={(localStorage.getItem("omni_preauth_goal") as "ecom" | "leadgen" | "hybrid") || "ecom"}
+          onFinish={handleWelcomeFinish}
+          onSkip={handleWelcomeSkip}
+        />
+      )}
     </AuthGate>
   );
 }

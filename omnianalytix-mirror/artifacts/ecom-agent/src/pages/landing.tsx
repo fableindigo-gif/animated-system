@@ -84,6 +84,14 @@ function BentoCard({ children, className, delay = 0 }: { children: React.ReactNo
 }
 
 // ─── Hero Dashboard Mockup ───────────────────────────────────────────────────
+function GoogleGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#FFFFFF" d="M21.35 11.1H12v2.95h5.35c-.23 1.5-1.7 4.4-5.35 4.4-3.22 0-5.85-2.66-5.85-5.95s2.63-5.95 5.85-5.95c1.83 0 3.06.78 3.76 1.45l2.56-2.46C16.74 3.93 14.6 3 12 3 6.98 3 3 6.98 3 12s3.98 9 9 9c5.2 0 8.65-3.65 8.65-8.8 0-.6-.07-1.05-.15-1.5z"/>
+    </svg>
+  );
+}
+
 function DashboardMockup() {
   return (
     <div className="w-full bg-white rounded-3xl border border-[#e8e8ed] shadow-[0_24px_64px_rgba(25,28,30,0.1)] overflow-hidden">
@@ -351,12 +359,19 @@ export default function LandingPage({
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <button onClick={onSsoStart} className="text-[#434655] font-medium hover:text-[#1a1c1f] transition-colors hidden sm:block text-sm">
+            <button onClick={onSsoStart} className="text-[#434655] font-medium hover:text-[#1a1c1f] transition-colors hidden sm:block text-sm" data-testid="header-sign-in">
               Sign In
             </button>
             <button
+              onClick={onSsoStart}
+              data-testid="header-start-free"
+              className="bg-[#2563EB] text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-blue-500/25 hover:bg-[#1d4ed8] active:scale-95 transition-all hidden sm:inline-flex items-center gap-2"
+            >
+              <GoogleGlyph className="w-4 h-4" /> Start free
+            </button>
+            <button
               onClick={() => onLeadCapture?.()}
-              className="bg-[#2563EB] text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-lg shadow-blue-500/25 hover:bg-[#1d4ed8] active:scale-95 transition-all hidden sm:block"
+              className="text-[#434655] font-medium hover:text-[#1a1c1f] transition-colors hidden lg:block text-sm"
             >
               Request Demo
             </button>
@@ -414,7 +429,17 @@ export default function LandingPage({
               ))}
             </nav>
             <div className="px-5 pt-3 space-y-3 border-t border-[#e8e8ed] mt-2">
-              <button onClick={() => { setMobileMenuOpen(false); onLeadCapture?.(); }} className="w-full py-3 bg-[#2563EB] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-[#1d4ed8] transition-all">
+              <button
+                onClick={() => { setMobileMenuOpen(false); onSsoStart(); }}
+                data-testid="mobile-start-free"
+                className="w-full py-3 bg-[#2563EB] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:bg-[#1d4ed8] transition-all inline-flex items-center justify-center gap-2"
+              >
+                <GoogleGlyph className="w-4 h-4" /> Start free with Google
+              </button>
+              <p className="text-[11px] text-[#6b6f7d] text-center font-medium px-2">
+                Free during onboarding · paid plans from $49/mo
+              </p>
+              <button onClick={() => { setMobileMenuOpen(false); onLeadCapture?.(); }} className="w-full py-2.5 border border-[#e8e8ed] rounded-xl text-sm font-bold text-[#1a1c1f] hover:bg-[#f8f9fb] transition-all">
                 Request Demo
               </button>
               <button onClick={() => { setMobileMenuOpen(false); onSsoStart(); }} className="w-full py-2 text-sm font-medium text-muted-foreground hover:text-[#434655] transition-colors text-center">
@@ -469,10 +494,31 @@ export default function LandingPage({
                 Enterprise AI analytics, secured for agencies. OmniAnalytix surfaces budget overruns, pixel drops, and out-of-stock spend across Shopify, Google Ads &amp; your CRM — then helps you fix them in one click, with a human in the loop.
               </motion.p>
 
-              <motion.form
+              <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.38 }}
+                className="max-w-lg mb-3"
+              >
+                <button
+                  type="button"
+                  onClick={onSsoStart}
+                  data-testid="hero-start-free"
+                  className="w-full sm:w-auto whitespace-nowrap bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] text-white px-7 py-4 rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/25 active:scale-[0.97] transition-all inline-flex items-center justify-center gap-2.5"
+                >
+                  <GoogleGlyph className="w-4 h-4" />
+                  Start free with Google
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                <p className="text-xs text-[#6b6f7d] mt-2.5 font-medium" data-testid="hero-pricing-hint">
+                  Free during onboarding · no credit card · paid plans start at <span className="font-bold text-[#1a1c1f]">$49/mo</span> when you go live.
+                </p>
+              </motion.div>
+
+              <motion.form
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.44 }}
                 onSubmit={handleHeroSubmit}
                 className="flex flex-col sm:flex-row gap-3 max-w-lg mb-5"
               >
@@ -481,12 +527,12 @@ export default function LandingPage({
                   required
                   value={heroEmail}
                   onChange={(e) => setHeroEmail(e.target.value)}
-                  placeholder="Enter your work email"
-                  className="flex-1 rounded-2xl border border-[#e8e8ed] bg-white/80 px-5 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB]/40 text-[#1a1c1f] placeholder:text-[#b0b3c1] shadow-sm"
+                  placeholder="Or enter your work email for a demo"
+                  className="flex-1 rounded-2xl border border-[#e8e8ed] bg-white/80 px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB]/40 text-[#1a1c1f] placeholder:text-[#b0b3c1] shadow-sm"
                 />
                 <button
                   type="submit"
-                  className="whitespace-nowrap bg-gradient-to-br from-[#2563EB] to-[#1d4ed8] text-white px-7 py-4 rounded-2xl font-bold text-sm shadow-xl shadow-blue-500/25 active:scale-[0.97] transition-all flex items-center gap-2"
+                  className="whitespace-nowrap border border-[#e8e8ed] bg-white text-[#1a1c1f] px-6 py-3.5 rounded-2xl font-bold text-sm hover:bg-[#f8f9fb] active:scale-[0.97] transition-all flex items-center justify-center gap-2"
                 >
                   <Send className="w-4 h-4" /> Request Demo
                 </button>

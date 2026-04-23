@@ -19,6 +19,7 @@ import {
   Pencil,
   Check,
   X,
+  Filter as FilterIcon,
 } from "lucide-react";
 import { SiGoogleads, SiMeta } from "react-icons/si";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -34,6 +35,7 @@ import { formatRelativeTime } from "@/lib/formatters";
 import { Link } from "wouter";
 import { FilterBar } from "./filter-bar";
 import { useFilterQs } from "@/lib/use-filter-qs";
+import { useFilters } from "@/contexts/filters-context";
 import { useEconomicsSettings } from "@/lib/use-economics-settings";
 import { WindowEmptyBanner } from "./window-empty-banner";
 
@@ -129,6 +131,13 @@ interface PerformanceGridProps {
    * title/status pills/lookback don't fight for one cramped row.
    */
   compact?: boolean;
+  /**
+   * In compact mode, render a "Filters" button in the header that opens
+   * a popover containing the FilterBar. Used by the mobile reports pane
+   * (which uses compact mode but still needs filter access since the
+   * dashboard's main FilterBar lives on a different mobile pane).
+   */
+  showFiltersButton?: boolean;
 }
 
 function fmt(n: number | null | undefined, prefix = "") {
@@ -758,7 +767,7 @@ function GoogleConnectPrompt() {
   );
 }
 
-export function PerformanceGrid({ onAnalyze, compact = false }: PerformanceGridProps) {
+export function PerformanceGrid({ onAnalyze, compact = false, showFiltersButton = false }: PerformanceGridProps) {
   const isMobile = useIsMobile();
   const { dateRange, refreshKey } = useDateRange();
   const { activeWorkspace } = useWorkspace();
@@ -785,6 +794,33 @@ export function PerformanceGrid({ onAnalyze, compact = false }: PerformanceGridP
   const [hasMore, setHasMore] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [activeConnCount, setActiveConnCount] = useState<number | null>(null);
+  // Filters popover (only used when `showFiltersButton` is set, i.e. compact
+  // mode on the mobile reports pane where the dashboard's main FilterBar is
+  // not reachable).
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersPopRef = useRef<HTMLDivElement | null>(null);
+  const { filters: activeFilters, q: activeQ, thresholds: activeThresholds } = useFilters("performance-grid");
+  const activeFilterCount =
+    Object.values(activeFilters).filter((arr) => arr && arr.length > 0).length +
+    (activeQ ? 1 : 0) +
+    Object.keys(activeThresholds).length;
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (filtersPopRef.current && !filtersPopRef.current.contains(e.target as Node)) {
+        setFiltersOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFiltersOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [filtersOpen]);
   // ── Window-empty disambiguation (task #114) ─────────────────────────────
   // Tracks whether the warehouse has rows for this tenant outside the
   // currently selected date window. When true and the in-window result set
@@ -1012,13 +1048,59 @@ export function PerformanceGrid({ onAnalyze, compact = false }: PerformanceGridP
             : "px-4 items-start justify-between",
         )}
       >
-        <div className="shrink-0">
-          <p className="text-[9px] font-semibold text-on-secondary-container uppercase tracking-widest">
-            {dataSource === "live" ? "Live · Google Ads API" : "Active Channels"}
-          </p>
-          <h2 className="text-sm font-bold text-on-surface">
-            Performance Grid
-          </h2>
+        <div className={cn("shrink-0", compact && showFiltersButton && "flex items-start justify-between gap-2")}>
+          <div>
+            <p className="text-[9px] font-semibold text-on-secondary-container uppercase tracking-widest">
+              {dataSource === "live" ? "Live · Google Ads API" : "Active Channels"}
+            </p>
+            <h2 className="text-sm font-bold text-on-surface">
+              Performance Grid
+            </h2>
+          </div>
+          {compact && showFiltersButton && (
+            <div ref={filtersPopRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((v) => !v)}
+                data-testid="performance-grid-filters-button"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-colors min-h-[36px]",
+                  activeFilterCount > 0 || filtersOpen
+                    ? "border-accent-blue/40 bg-blue-50 text-accent-blue"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+                )}
+                aria-expanded={filtersOpen}
+                aria-label="Filters"
+              >
+                <FilterIcon className="w-3 h-3" />
+                <span>Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-accent-blue text-white text-[9px] font-bold tabular-nums">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+              {filtersOpen && (
+                <div
+                  className="absolute right-0 mt-2 z-[300] w-[min(92vw,380px)] rounded-2xl border border-slate-200 bg-white shadow-xl p-2"
+                  data-testid="performance-grid-filters-popover"
+                >
+                  <FilterBar
+                    pageKey="performance-grid"
+                    dimensions={[
+                      { id: "platform" },
+                      { id: "campaign" },
+                      { id: "network" },
+                      { id: "device" },
+                      { id: "country" },
+                    ]}
+                    hideSavedViews
+                    enableThresholds={false}
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Status filter ───────────────────────────────────────── */}

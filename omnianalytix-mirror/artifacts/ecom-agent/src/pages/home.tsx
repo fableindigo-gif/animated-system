@@ -1155,18 +1155,23 @@ export default function Home() {
       </div>
 
       {/* RIGHT — Active Channels Performance Grid
-          Compact mode is bound to the actual narrow-rail rendering: at lg+
-          the rail is a fixed 320px column, so we render PerformanceGrid in
-          compact mode. Below lg the same pane flips to full-width when the
-          mobile reports tab is active, and we keep the full-fidelity
-          (non-compact) layout including the embedded FilterBar. */}
+          Always rendered in compact mode: at lg+ this is the fixed 320px
+          right rail; below lg the same pane flips to full-width when the
+          mobile reports tab is active. The inline FilterBar is hidden in
+          compact mode (the dashboard's main FilterBar covers desktop), so
+          on mobile we surface filter access via the popover-button entry
+          point exposed by `showFiltersButton`. */}
       <div className={cn(
         "shrink-0 h-full transition-all duration-200",
         "lg:flex lg:w-[320px]",
         mobilePane === "reports" ? "flex w-full" : "hidden",
       )}>
         <ErrorBoundary fallbackLabel="Unable to load channels grid">
-          <PerformanceGrid compact={isLgRail} onAnalyze={(prompt) => { setViewMode("summary"); setMobilePane("chat"); handleSend(prompt); }} />
+          <PerformanceGrid
+            compact
+            showFiltersButton={!isLgRail}
+            onAnalyze={(prompt) => { setViewMode("summary"); setMobilePane("chat"); handleSend(prompt); }}
+          />
         </ErrorBoundary>
       </div>
 

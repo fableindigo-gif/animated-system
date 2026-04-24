@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, X, Filter, Bookmark, BookmarkPlus, Loader2, Search, Sliders } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { authFetch } from "@/lib/auth-fetch";
+import {
+  FLOATING_LAYER_EVENT,
+  dispatchFloatingLayerOpen,
+  type FloatingLayerEventDetail,
+} from "@/lib/floating-layer-events";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useDateRange } from "@/contexts/date-range-context";
 import {
@@ -103,32 +108,15 @@ export interface DimensionSpec {
   options?: { value: string; label: string }[];
 }
 
-// ─── Floating-layer mutual exclusion ──────────────────────────────────────────
-// Task #25: a tiny window-event channel that lets the header profile dropdown
-// and any FilterBar popover (Search dims / Thresholds / Saved Views) coexist
-// safely. Whenever a layer becomes visible it dispatches
-// `omni:floating-layer-open` with `detail.source` identifying who opened.
-// Other listeners close themselves on any event whose source isn't theirs,
-// so only one floating layer is ever on screen at a time. The two callers
-// don't import each other — they just share the event name string.
-const FLOATING_EVENT = "omni:floating-layer-open" as const;
-const FLOATING_SOURCE = "filter-bar" as const;
-
-function announceOpen(source: string) {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(FLOATING_EVENT, { detail: { source } }));
-}
-
-/** Close the popover when *any other* floating layer announces it has opened. */
+// Task #25: close this popover whenever a non-FilterBar floating layer opens.
 function useCloseOnOtherFloatingOpen(close: () => void) {
   useEffect(() => {
     const handler = (e: Event) => {
-      const ce = e as CustomEvent<{ source?: string }>;
-      if (ce.detail?.source !== FLOATING_SOURCE) close();
+      const ce = e as CustomEvent<FloatingLayerEventDetail>;
+      if (ce.detail?.source !== "filter-bar") close();
     };
-    window.addEventListener(FLOATING_EVENT, handler as EventListener);
-    return () => window.removeEventListener(FLOATING_EVENT, handler as EventListener);
-    // close is captured via ref-like closure; callers pass a stable updater.
+    window.addEventListener(FLOATING_LAYER_EVENT, handler as EventListener);
+    return () => window.removeEventListener(FLOATING_LAYER_EVENT, handler as EventListener);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
@@ -215,7 +203,7 @@ function DimensionPill({
         onClick={() =>
           setOpen((v) => {
             const next = !v;
-            if (next) announceOpen(FLOATING_SOURCE);
+            if (next) dispatchFloatingLayerOpen("filter-bar");
             return next;
           })
         }
@@ -387,7 +375,7 @@ function ThresholdsPill({
         onClick={() =>
           setOpen((v) => {
             const next = !v;
-            if (next) announceOpen(FLOATING_SOURCE);
+            if (next) dispatchFloatingLayerOpen("filter-bar");
             return next;
           })
         }
@@ -577,7 +565,7 @@ function SavedViewsMenu({ pageKey, current }: { pageKey: string; current: Filter
         onClick={() =>
           setOpen((v) => {
             const next = !v;
-            if (next) announceOpen(FLOATING_SOURCE);
+            if (next) dispatchFloatingLayerOpen("filter-bar");
             return next;
           })
         }

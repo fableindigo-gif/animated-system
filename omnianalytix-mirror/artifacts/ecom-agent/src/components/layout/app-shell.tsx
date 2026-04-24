@@ -6,6 +6,11 @@ import { cn } from "@/lib/utils";
 import { FaqDrawer } from "@/components/help/faq-drawer";
 import { SupportFab } from "@/components/help/support-fab";
 import { authFetch } from "@/lib/auth-fetch";
+import {
+  FLOATING_LAYER_EVENT,
+  dispatchFloatingLayerOpen,
+  type FloatingLayerEventDetail,
+} from "@/lib/floating-layer-events";
 import { CommandPalette } from "@/components/command-palette";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { useCredits } from "@/contexts/credits-context";
@@ -590,20 +595,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("mousedown", handler);
   }, [profileOpen]);
 
-  // ── Mutual exclusion with page-level floating layers (filter popovers) ───
-  // Task #25: when any dashboard FilterBar popover opens it dispatches
-  // `omni:floating-layer-open` with `detail.source === "filter-bar"`. We
-  // close the profile dropdown on any event whose source isn't "profile" so
-  // only one floating layer can be visible at a time. The profile button's
-  // own onClick dispatches the matching "profile" event so filter popovers
-  // close when the menu opens.
+  // Task #25: close the profile dropdown when any other floating layer opens.
   useEffect(() => {
     const handler = (e: Event) => {
-      const ce = e as CustomEvent<{ source?: string }>;
+      const ce = e as CustomEvent<FloatingLayerEventDetail>;
       if (ce.detail?.source !== "profile") setProfileOpen(false);
     };
-    window.addEventListener("omni:floating-layer-open", handler as EventListener);
-    return () => window.removeEventListener("omni:floating-layer-open", handler as EventListener);
+    window.addEventListener(FLOATING_LAYER_EVENT, handler as EventListener);
+    return () => window.removeEventListener(FLOATING_LAYER_EVENT, handler as EventListener);
   }, []);
 
   // ── Global keyboard shortcuts ─────────────────────────────────────────────

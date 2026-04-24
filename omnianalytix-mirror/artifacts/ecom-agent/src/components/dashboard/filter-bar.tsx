@@ -103,6 +103,36 @@ export interface DimensionSpec {
   options?: { value: string; label: string }[];
 }
 
+// ─── Floating-layer mutual exclusion ──────────────────────────────────────────
+// Task #25: a tiny window-event channel that lets the header profile dropdown
+// and any FilterBar popover (Search dims / Thresholds / Saved Views) coexist
+// safely. Whenever a layer becomes visible it dispatches
+// `omni:floating-layer-open` with `detail.source` identifying who opened.
+// Other listeners close themselves on any event whose source isn't theirs,
+// so only one floating layer is ever on screen at a time. The two callers
+// don't import each other — they just share the event name string.
+const FLOATING_EVENT = "omni:floating-layer-open" as const;
+const FLOATING_SOURCE = "filter-bar" as const;
+
+function announceOpen(source: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(FLOATING_EVENT, { detail: { source } }));
+}
+
+/** Close the popover when *any other* floating layer announces it has opened. */
+function useCloseOnOtherFloatingOpen(close: () => void) {
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ source?: string }>;
+      if (ce.detail?.source !== FLOATING_SOURCE) close();
+    };
+    window.addEventListener(FLOATING_EVENT, handler as EventListener);
+    return () => window.removeEventListener(FLOATING_EVENT, handler as EventListener);
+    // close is captured via ref-like closure; callers pass a stable updater.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+}
+
 export interface FilterBarProps {
   pageKey: string;
   dimensions: DimensionSpec[];
@@ -143,6 +173,9 @@ function DimensionPill({
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  // Task #25: close when the profile dropdown (or any other source) opens.
+  useCloseOnOtherFloatingOpen(() => setOpen(false));
+
   // Fetch hints when this pill opens, if the dim is dynamically fetchable and
   // has no static options baked in.
   const staticOpts = spec.options ?? STATIC_OPTIONS[spec.id] ?? [];
@@ -179,7 +212,13 @@ function DimensionPill({
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() =>
+          setOpen((v) => {
+            const next = !v;
+            if (next) announceOpen(FLOATING_SOURCE);
+            return next;
+          })
+        }
         className={cn(
           "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
           selected.length > 0
@@ -311,6 +350,9 @@ function ThresholdsPill({
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  // Task #25: close when the profile dropdown (or any other source) opens.
+  useCloseOnOtherFloatingOpen(() => setOpen(false));
+
   const activeCount = Object.keys(thresholds).length;
   const summary = activeCount === 0
     ? "Thresholds"
@@ -342,7 +384,13 @@ function ThresholdsPill({
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() =>
+          setOpen((v) => {
+            const next = !v;
+            if (next) announceOpen(FLOATING_SOURCE);
+            return next;
+          })
+        }
         className={cn(
           "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
           activeCount > 0
@@ -469,6 +517,9 @@ function SavedViewsMenu({ pageKey, current }: { pageKey: string; current: Filter
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  // Task #25: close when the profile dropdown (or any other source) opens.
+  useCloseOnOtherFloatingOpen(() => setOpen(false));
+
   const reload = async () => {
     if (!activeWorkspace) return;
     try {
@@ -523,7 +574,13 @@ function SavedViewsMenu({ pageKey, current }: { pageKey: string; current: Filter
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() =>
+          setOpen((v) => {
+            const next = !v;
+            if (next) announceOpen(FLOATING_SOURCE);
+            return next;
+          })
+        }
         className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300"
       >
         <Bookmark className="w-3 h-3" />

@@ -590,6 +590,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("mousedown", handler);
   }, [profileOpen]);
 
+  // ── Mutual exclusion with page-level floating layers (filter popovers) ───
+  // Task #25: when any dashboard FilterBar popover opens it dispatches
+  // `omni:floating-layer-open` with `detail.source === "filter-bar"`. We
+  // close the profile dropdown on any event whose source isn't "profile" so
+  // only one floating layer can be visible at a time. The profile button's
+  // own onClick dispatches the matching "profile" event so filter popovers
+  // close when the menu opens.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ source?: string }>;
+      if (ce.detail?.source !== "profile") setProfileOpen(false);
+    };
+    window.addEventListener("omni:floating-layer-open", handler as EventListener);
+    return () => window.removeEventListener("omni:floating-layer-open", handler as EventListener);
+  }, []);
+
   // ── Global keyboard shortcuts ─────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -723,7 +739,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <div className="relative" ref={profileRef}>
               <button
-                onClick={() => setProfileOpen(!profileOpen)}
+                onClick={() => {
+                  const next = !profileOpen;
+                  setProfileOpen(next);
+                  // Task #25: announce we're opening the profile menu so any
+                  // open dashboard filter popover closes itself.
+                  if (next && typeof window !== "undefined") {
+                    window.dispatchEvent(
+                      new CustomEvent("omni:floating-layer-open", { detail: { source: "profile" } }),
+                    );
+                  }
+                }}
                 className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold hover:bg-slate-200 transition-all overflow-hidden border-2 border-slate-200/80"
                 aria-label="Account menu"
               >
@@ -740,7 +766,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200 shadow-2xl">
+                <div className="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl overflow-hidden z-[300] animate-in fade-in slide-in-from-top-2 duration-200 shadow-2xl">
                   <div className="px-5 py-4 border-b border-slate-100">
                     <p className="font-heading text-sm font-semibold text-on-surface truncate tracking-tight">
                       {localStorage.getItem("omni_user_name") || "User"}
